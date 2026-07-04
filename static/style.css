@@ -1,0 +1,466 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* Layout a due colonne che riempie l'intera finestra */
+#contenitore {
+  display: flex;
+  height: 100vh;
+  position: relative;
+}
+
+/* Menù a sinistra */
+#menu {
+  flex: 0 0 auto;
+  width: 260px;
+  min-width: 180px;
+  background: #1f2933;
+  color: #e4e7eb;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  position: relative;
+  transition:
+    width 0.25s ease,
+    min-width 0.25s ease,
+    padding 0.25s ease;
+}
+
+#menu.collassato {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+#menu .firma {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: #7b8794;
+}
+
+#menu h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+  overflow-wrap: break-word;
+}
+
+/* Gruppo etichetta + controllo */
+#menu .gruppo {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#menu label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa5b1;
+}
+
+#menu input,
+#menu select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: #e4e7eb;
+  background: #323f4b;
+  border: 1px solid #3e4c59;
+  border-radius: 6px;
+}
+
+#menu input:focus,
+#menu select:focus {
+  outline: none;
+  border-color: #7b8794;
+}
+
+/* Data in formato esteso italiano */
+#menu .data-estesa {
+  font-size: 13px;
+  color: #cbd2d9;
+}
+
+/* Mappa */
+#mappa {
+  flex: 1;
+}
+
+.titolo-popup {
+  font: 600 13px system-ui;
+  margin-bottom: 6px;
+}
+
+.grafico-popup {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font: 13px system-ui;
+  border: 1px dashed #cbd5e1;
+}
+
+.grafico-popup.nessun-placeholder {
+  display: block;
+  border: none;
+}
+
+/* --- Finestra centrata (modale) per il grafico --- */
+/* Overlay non bloccante: centra la finestra ma lascia interagire mappa e menù */
+.modale-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* i click passano a mappa/menù dietro */
+  z-index: 2000; /* sopra la mappa e i controlli Leaflet */
+}
+
+/* La regola .modale-overlay sovrascriverebbe l'attributo hidden: lo ripristino */
+.modale-overlay[hidden] {
+  display: none;
+}
+
+.modale-finestra {
+  position: relative;
+  pointer-events: auto; /* la finestra, invece, è interattiva */
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  padding: 18px 20px;
+}
+
+/* spazio a destra del titolo per non finire sotto la X */
+.modale-finestra .titolo-popup {
+  padding-right: 22px;
+}
+
+/* Popup del grafico stazione: dimensione ridotta di default, ridimensionabile
+   trascinando l'angolo in basso a destra (maniglia nativa del browser) */
+.finestra-grafico {
+  position: fixed;
+  z-index: 2000;
+  width: 800px;
+  height: 480px;
+  min-width: 360px;
+  min-height: 260px;
+  max-width: 95vw;
+  max-height: 90vh;
+  resize: both;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.finestra-grafico .titolo-popup {
+  cursor: grab;
+  user-select: none;
+  padding-top: 4px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+.finestra-grafico .titolo-popup:active {
+  cursor: grabbing;
+}
+
+.modale-chiudi {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  color: #5a6b7b;
+  cursor: pointer;
+}
+
+.modale-chiudi:hover {
+  color: #1f2933;
+}
+
+/* --- Bottoni di SERIE (1D) e CAMPO (2D): stessa veste grafica --- */
+#menu .bottoni-serie,
+#menu .bottoni-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#menu .bottone-serie,
+#menu .bottone-campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: #e4e7eb;
+  background: #323f4b;
+  border: 1px solid #3e4c59;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+#menu .bottone-serie img,
+#menu .bottone-campo img {
+  width: 20px;
+  height: 20px;
+  flex: none; /* l'icona non si comprime */
+}
+
+#menu .bottone-serie:hover,
+#menu .bottone-campo:hover {
+  border-color: #7b8794;
+}
+
+/* Bottone (serie o campo) attualmente selezionato */
+#menu .bottone-serie.attivo,
+#menu .bottone-campo.attivo {
+  border-color: #2f6fed;
+  background: #24344a;
+}
+
+.leaflet-tile {
+  outline: 1px solid transparent;
+}
+
+.leaflet-container img {
+  max-width: none !important;
+}
+
+.leaflet-tooltip.tooltip-stazione {
+  font-size: 13px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+}
+
+.tooltip-stazione.leaflet-tooltip-top::before {
+  border-top-color: rgba(0, 0, 0, 0.8);
+}
+
+.leaflet-interactive:focus {
+  outline: none;
+}
+
+#controlli-radar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(31, 41, 51, 0.9);
+  color: #e4e7eb;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font: 13px system-ui;
+}
+
+#controlli-radar[hidden] {
+  display: none;
+}
+
+.colorbar-contenitore {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1500;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.colorbar-campo {
+  max-width: min(90vw, 700px);
+  max-height: 300px;
+}
+
+.colorbar-campo[hidden] {
+  display: none;
+}
+
+#controlli-radar button {
+  background: #323f4b;
+  color: #e4e7eb;
+  border: 1px solid #3e4c59;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+#controlli-radar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.emoji-icon-gif {
+  width: 1.6em;
+  height: 1.6em;
+  vertical-align: -0.25em;
+}
+
+.linguetta-menu {
+  position: absolute;
+  top: 24px;
+  left: 260px;
+  z-index: 1600;
+  width: 20px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #1f2933;
+  color: #e4e7eb;
+  border: 1px solid #3e4c59;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+  transition: left 0.25s ease;
+}
+
+.linguetta-menu:hover {
+  background: #323f4b;
+}
+
+.linguetta-menu.collassata {
+  left: 0;
+}
+
+#modaleLayer .modale-finestra {
+  width: min(90vw, 480px);
+}
+
+#modaleLayer .titolo-popup {
+  cursor: grab;
+  user-select: none;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+#modaleLayer .titolo-popup:active {
+  cursor: grabbing;
+}
+
+.colonne-layer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.gruppo-impostazioni {
+  margin-top: 14px;
+}
+
+.colonne-layer .gruppo-impostazioni {
+  margin-top: 0;
+}
+
+.gruppo-impostazioni > label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7b8794;
+}
+
+.scelte-mappa {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.scelta-mappa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1f2933;
+  cursor: pointer;
+}
+
+.separatore-menu {
+  border: none;
+  border-top: 1px solid #3e4c59;
+  margin: 20px 0 0;
+}
+
+#menu .bottone-azione {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: #e4e7eb;
+  background: #323f4b;
+  border: 1px solid #3e4c59;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  margin-top: 6px;
+}
+
+#menu .bottone-azione img {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+#menu .bottone-azione .icona-a-destra {
+  margin-left: auto;
+}
+
+#menu .bottone-azione:hover {
+  border-color: #7b8794;
+}
+
+#menu .bottone-azione.attivo {
+  border-color: #2f6fed;
+  background: #24344a;
+}
+
+#menu .bottone-azione:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: #3e4c59;
+  background: #323f4b;
+}

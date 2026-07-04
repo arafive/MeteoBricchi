@@ -1,0 +1,1710 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeteoBricchi</title>
+
+    <link
+      rel="icon"
+      type="image/gif"
+      href="{{ url_for('static', filename='icone/ape.gif') }}"
+    />
+
+    <!-- Leaflet CSS (servito localmente da Flask, niente CDN) -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='leaflet/leaflet.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <div id="contenitore">
+      <button
+        type="button"
+        id="linguettaMenu"
+        class="linguetta-menu"
+        aria-label="Nascondi/mostra il menù"
+      >
+        ‹
+      </button>
+      <aside id="menu">
+        <h1>
+          MeteoBricchi
+          <img
+            src="{{ url_for('static', filename='icone/ape.png') }}"
+            class="emoji-icon-gif"
+            alt=""
+          />
+        </h1>
+
+        <div class="gruppo">
+          <label for="data">Data</label>
+          <input type="datetime-local" id="data" step="300" />
+        </div>
+
+        <!-- SERIE = dati 1D (serie temporali): stazioni puntuali -->
+        <div class="gruppo">
+          <label>Stazioni</label>
+          <div class="bottoni-serie">
+            <button type="button" class="bottone-serie" data-serie="vento">
+              <img
+                src="{{ url_for('static', filename='icone/vento.svg') }}"
+                alt=""
+              />
+              <span>Vento</span>
+            </button>
+            <button
+              type="button"
+              class="bottone-serie"
+              data-serie="temperatura"
+            >
+              <img
+                src="{{ url_for('static', filename='icone/temperatura.svg') }}"
+                alt=""
+              />
+              <span>Temperatura</span>
+            </button>
+            <button type="button" class="bottone-serie" data-serie="umidita">
+              <img
+                src="{{ url_for('static', filename='icone/umidita.svg') }}"
+                alt=""
+              />
+              <span>Umidità</span>
+            </button>
+            <button type="button" class="bottone-serie" data-serie="pioggia">
+              <img
+                src="{{ url_for('static', filename='icone/pioggia.svg') }}"
+                alt=""
+              />
+              <span>Pioggia</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- CAMPO = dati 2D (griglia lat/lon): overlay - per ora solo il bottone -->
+        <div class="gruppo">
+          <label>Campi</label>
+          <div class="bottoni-campo">
+            <button type="button" class="bottone-campo" data-campo="radar">
+              <img
+                src="{{ url_for('static', filename='icone/radar_3.svg') }}"
+                alt=""
+              />
+              <span>Radar</span>
+            </button>
+            <button
+              type="button"
+              class="bottone-campo"
+              data-campo="riflettivita"
+            >
+              <img
+                src="{{ url_for('static', filename='icone/riflettivita.svg') }}"
+                alt=""
+              />
+              <span>Riflettività</span>
+            </button>
+            <button type="button" class="bottone-campo" data-campo="fulmini">
+              <img
+                src="{{ url_for('static', filename='icone/fulmini.svg') }}"
+                alt=""
+              />
+              <span>Fulmini</span>
+            </button>
+            <button type="button" class="bottone-campo" data-campo="satellite">
+              <img
+                src="{{ url_for('static', filename='icone/satellite_1.svg') }}"
+                alt=""
+              />
+              <span>Satellite</span>
+            </button>
+            <button type="button" class="bottone-campo" data-campo="irene">
+              <img
+                src="{{ url_for('static', filename='icone/irene.svg') }}"
+                alt=""
+              />
+              <span>IRENE</span>
+            </button>
+            <button type="button" class="bottone-campo" data-campo="caldo">
+              <img
+                src="{{ url_for('static', filename='icone/caldo.svg') }}"
+                alt=""
+              />
+              <span>Heat Index</span>
+            </button>
+            <button type="button" class="bottone-campo" data-campo="freddo">
+              <img
+                src="{{ url_for('static', filename='icone/freddo.svg') }}"
+                alt=""
+              />
+              <span>Wind Chill</span>
+            </button>
+          </div>
+        </div>
+
+        <hr class="separatore-menu" />
+
+        <button
+          type="button"
+          class="bottone-azione"
+          id="bottoneAnimazione"
+          disabled
+        >
+          <img
+            src="{{ url_for('static', filename='icone/animazione.svg') }}"
+            alt=""
+          />
+          <span>Animazione</span>
+          <img
+            id="bottoneAnimazioneIcona"
+            src="{{ url_for('static', filename='icone/play.svg') }}"
+            alt=""
+            class="icona-a-destra"
+          />
+        </button>
+
+        <button type="button" class="bottone-azione" id="bottoneColorbar">
+          <img
+            src="{{ url_for('static', filename='icone/colorbar.svg') }}"
+            alt=""
+          />
+          <span>Colorbar</span>
+          <img
+            id="bottoneColorbarIcona"
+            src="{{ url_for('static', filename='icone/off.svg') }}"
+            alt=""
+            class="icona-a-destra"
+          />
+        </button>
+
+        <button type="button" class="bottone-azione" id="bottoneLayer">
+          <img
+            src="{{ url_for('static', filename='icone/layer.svg') }}"
+            alt=""
+          />
+          <span>Layer</span>
+        </button>
+        <div class="firma">
+          Arts by Daniele
+          <!-- Arts by DC&nbsp;&nbsp;<img src="{{ url_for('static', filename='icone/ape.gif') }}" -->
+          <!--   class="emoji-icon-gif" -->
+          <!--   alt="" -->
+          <!-- /> -->
+        </div>
+      </aside>
+      <main id="mappa"></main>
+
+      <div id="controlli-radar" hidden>
+        <button type="button" id="radarIndietro">◀</button>
+        <span id="radarEtichetta"></span>
+        <button type="button" id="radarAvanti">▶</button>
+      </div>
+
+      <div id="colorbarContenitore" class="colorbar-contenitore">
+        <img
+          id="colorbarCampo0"
+          class="colorbar-campo"
+          hidden
+          alt="Scala colori"
+        />
+        <img
+          id="colorbarCampo1"
+          class="colorbar-campo"
+          hidden
+          alt="Scala colori"
+        />
+      </div>
+    </div>
+
+    <!-- Finestre dei grafici stazione: create dinamicamente, una per
+         stazione aperta (se ne possono tenere aperte quante si vuole) -->
+    <div id="finestreGrafici"></div>
+
+    <!-- Finestra centrata dei layer (mappa di base + sentieri) -->
+    <div id="modaleLayer" class="modale-overlay" hidden>
+      <div class="modale-finestra">
+        <button
+          id="modaleLayerChiudi"
+          class="modale-chiudi"
+          aria-label="Chiudi"
+        >
+          &times;
+        </button>
+        <div class="titolo-popup">Layer</div>
+        <div class="colonne-layer">
+          <div class="gruppo-impostazioni">
+            <label>Mappa di base</label>
+            <div class="scelte-mappa" id="scelteMappaLayer"></div>
+          </div>
+          <div class="gruppo-impostazioni">
+            <label>Sentieri</label>
+            <div class="scelte-mappa" id="scelteSentieriLayer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaflet JS (servito localmente da Flask, niente CDN) -->
+    <script src="{{ url_for('static', filename='leaflet/leaflet.js') }}"></script>
+    <!-- ECharts (servito localmente da Flask, niente CDN) -->
+    <script src="{{ url_for('static', filename='echarts/echarts.min.js') }}"></script>
+    <!-- Generazione dei grafici delle serie (modulo separato) -->
+    <script src="{{ url_for('static', filename='js/grafici.js') }}"></script>
+    <script>
+      // ===== DISTINZIONE FONDAMENTALE 1D vs 2D =====
+      // SERIE = dato 1D (varia nel tempo): vento, temperatura. Legato a stazioni
+      //         puntuali, si visualizza come grafico temporale (ECharts).
+      // CAMPO = dato 2D (griglia lat/lon): es. radar. Si visualizzera' come
+      //         overlay sulla mappa.
+
+      // Vista iniziale centrata sulla Liguria (Genova), zoom regionale
+      const mappa = L.map("mappa", {
+        zoomControl: false,
+        keyboardPanDelta: 0, // le frecce non spostano la mappa (le usa il radar)
+      }).setView([44.2, 8.75], 9);
+
+      const JAWG_TOKEN =
+        "DFk9XtMZXvm87c8Zgnv7QPF3ATjMOTGNpomeTFUSLLjnaqBQgbqx2wWwKFDnEP2s";
+      const MAPTILER_KEY = "mOHeCTXyD0Yo9l1tlySq";
+
+      // Mappe di base disponibili: ciascuna puo' avere piu' strati (es. la
+      // 05 e' satellite + etichette separate). "id" e' quello usato dalle
+      // spuntine nel menu "Layer"; "nome" e' quello mostrato li'.
+      const DEFINIZIONI_MAPPE = [
+        {
+          id: "01",
+          nome: "Mapnik",
+          strati: [
+            {
+              url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "02",
+          nome: "Dataviz Dark",
+          strati: [
+            {
+              url:
+                "https://api.maptiler.com/maps/dataviz-v4-dark/256/{z}/{x}/{y}{r}.png?key=" +
+                MAPTILER_KEY,
+              opzioni: {
+                maxZoom: 20,
+                detectRetina: true,
+                crossOrigin: true,
+                attribution:
+                  '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "03",
+          nome: "Streets Dark",
+          strati: [
+            {
+              url:
+                "https://api.maptiler.com/maps/streets-v4-dark/256/{z}/{x}/{y}{r}.png?key=" +
+                MAPTILER_KEY,
+              opzioni: {
+                maxZoom: 20,
+                detectRetina: true,
+                crossOrigin: true,
+                attribution:
+                  '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "04",
+          nome: "Streets Light",
+          strati: [
+            {
+              url:
+                "https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}{r}.png?key=" +
+                MAPTILER_KEY,
+              opzioni: {
+                maxZoom: 20,
+                detectRetina: true,
+                crossOrigin: true,
+                attribution:
+                  '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "05",
+          nome: "Satellite",
+          strati: [
+            {
+              url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+              opzioni: {
+                maxZoom: 19,
+                attribution: "Tiles © Esri",
+              },
+            },
+            {
+              url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png",
+              opzioni: {
+                attribution:
+                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: "abcd",
+                maxZoom: 20,
+              },
+            },
+          ],
+        },
+        {
+          id: "06",
+          nome: "Stadia Bright",
+          strati: [
+            {
+              url: "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png",
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "07",
+          nome: "Stadia Dark",
+          strati: [
+            {
+              url: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  '&copy; <a href="https://www.stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "08",
+          nome: "Jawg Terrain",
+          strati: [
+            {
+              url: "https://tile.jawg.io/jawg-terrain/{z}/{x}/{y}{r}.png?access-token={accessToken}",
+              opzioni: {
+                maxZoom: 19,
+                accessToken: JAWG_TOKEN,
+                attribution:
+                  '<a href="https://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              },
+            },
+          ],
+        },
+        {
+          id: "09",
+          nome: "TopoMap",
+          strati: [
+            {
+              url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+              },
+            },
+          ],
+        },
+      ];
+
+      let stratiMappaAttivi = []; // layer Leaflet attualmente sulla mappa (0 o piu')
+
+      // Cambia la mappa di base: rimuove gli strati attuali e mette quelli
+      // della mappa scelta. id === null (o non trovato) -> nessuna mappa.
+      // zIndex basso (1, 2, ...): i sentieri (piu' sotto) stanno sempre sopra.
+      function impostaMappa(id) {
+        stratiMappaAttivi.forEach((strato) => mappa.removeLayer(strato));
+        stratiMappaAttivi = [];
+
+        const def = DEFINIZIONI_MAPPE.find((m) => m.id === id);
+        if (!def) return;
+
+        stratiMappaAttivi = def.strati.map((strato, i) =>
+          L.tileLayer(
+            strato.url,
+            Object.assign({ zIndex: i + 1 }, strato.opzioni),
+          ).addTo(mappa),
+        );
+      }
+
+      // Sentieri WaymarkedTrails, sovrapposti alla mappa di base: stessa
+      // logica (una sola scelta attiva, o nessuna), ma non la sostituiscono,
+      // le si aggiungono sopra.
+      const ATTRIBUZIONE_WAYMARKED =
+        'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
+
+      const DEFINIZIONI_SENTIERI = [
+        {
+          id: "hiking",
+          nome: "Escursionismo",
+          url: "https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+        {
+          id: "cycling",
+          nome: "Ciclabili",
+          url: "https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+        {
+          id: "mtb",
+          nome: "MTB",
+          url: "https://tile.waymarkedtrails.org/mtb/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+        {
+          id: "slopes",
+          nome: "Piste da sci",
+          url: "https://tile.waymarkedtrails.org/slopes/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+        {
+          id: "riding",
+          nome: "Ippica",
+          url: "https://tile.waymarkedtrails.org/riding/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+        {
+          id: "skating",
+          nome: "Pattinaggio",
+          url: "https://tile.waymarkedtrails.org/skating/{z}/{x}/{y}.png",
+          opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
+        },
+      ];
+
+      let stratoSentieroAttivo = null; // layer Leaflet del sentiero attivo, o null
+
+      function impostaSentiero(id) {
+        if (stratoSentieroAttivo) {
+          mappa.removeLayer(stratoSentieroAttivo);
+          stratoSentieroAttivo = null;
+        }
+        const def = DEFINIZIONI_SENTIERI.find((s) => s.id === id);
+        if (!def) return;
+
+        stratoSentieroAttivo = L.tileLayer(
+          def.url,
+          Object.assign({ zIndex: 100 }, def.opzioni),
+        ).addTo(mappa);
+      }
+
+      impostaMappa("06"); // di default, quella gia' attiva finora
+      // nessun sentiero attivo di default: non chiamo impostaSentiero()
+
+      // Sentieri
+      // L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
+      //     maxZoom: 19,
+      //     attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+      // }).addTo(mappa);
+
+      // Stile del pallino (ripreso dal cerchio SVG di OpenLayers)
+      const stilePallino = {
+        radius: 5, // r="5"
+        fillColor: "#FEFEFE", // fill
+        fillOpacity: 0.89875, // fill-opacity
+        color: "#000000", // stroke -> colore del bordo
+        opacity: 1, // stroke-opacity
+        weight: 2, // stroke-width
+        lineCap: "round", // stroke-linecap
+        lineJoin: "round", // stroke-linejoin
+      };
+
+      // Gruppo che contiene i pallini correnti (cambia al variare della SERIE)
+      const gruppoStazioni = L.layerGroup().addTo(mappa);
+
+      // --- Overlay temporale (CAMPO 2D): frame sfogliabili nel tempo.
+      // Due "tipi" condividono la stessa barra/controlli:
+      //  - "immagine": overlay PNG georiferito (radar, riflettivita)
+      //  - "punti": pallini letti da CSV, uno per frame (fulmini)
+      const controlliRadar = document.getElementById("controlli-radar");
+      const radarIndietro = document.getElementById("radarIndietro");
+      const radarAvanti = document.getElementById("radarAvanti");
+      const radarEtichetta = document.getElementById("radarEtichetta");
+      // Fino a 2 colorbar mostrabili insieme (una per ciascun campo attivo
+      // che ne ha una, radar/riflettivita; fulmini non ne ha)
+      const colorbarEl = [
+        document.getElementById("colorbarCampo0"),
+        document.getElementById("colorbarCampo1"),
+      ];
+      let colorbarVisibile = false; // toggle del bottone "Colorbar" nel menu'
+      const PRECARICA_RADAR = 5; // quanti frame precedenti precaricare
+
+      // Stato per CAMPO: fino a 2 campi temporali possono essere attivi
+      // insieme (vedi campiAttivi piu' sotto). Per ciascuno teniamo la sua
+      // lista frame, il suo layer sulla mappa, la sua cache e il suo token
+      // anti-race-condition, indicizzati per nome campo ("radar", ecc.)
+      const listaFrameCampo = {}; // campo -> { nomi, bounds, totale }
+      const livelliCampo = {}; // campo -> layer Leaflet attuale (o null)
+      const cachePrecaricamento = {}; // campo -> Map(indice proprio -> Image/Promise)
+      const richiestaCampo = {}; // campo -> token progressivo (anti race condition)
+
+      // Navigazione temporale condivisa: un'unica sequenza di istanti,
+      // unione dei frame di tutti i campi attivi. Le frecce/i pulsanti
+      // muovono insieme tutti i campi sullo stesso istante.
+      let listaIstanti = []; // timestamp (ms), ordinati, senza duplicati
+      let indiceIstante = -1;
+
+      const DESCRITTORI_CAMPO = {
+        radar: {
+          tipo: "immagine",
+          etichetta: "Radar SRI",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_radar_sri.png') }}",
+        },
+        riflettivita: {
+          tipo: "immagine",
+          etichetta: "Riflettività VMI",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_radar_vmi.png') }}",
+        },
+        fulmini: { tipo: "punti", etichetta: "Fulmini" },
+      };
+
+      // Icona dei pallini fulmine (CAMPO di tipo "punti")
+      const iconaFulmine = L.icon({
+        iconUrl: "{{ url_for('static', filename='icone/fulmini.svg') }}",
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      });
+
+      // Estrae l'istante (timestamp ms) da un nome frame "AAAA-MM-GG_HHMM...".
+      // null se il nome non e' nel formato atteso.
+      function parseIstante(nome) {
+        const m = nome.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+        if (!m) return null;
+        return new Date(
+          Number(m[1]),
+          Number(m[2]) - 1,
+          Number(m[3]),
+          Number(m[4]),
+          Number(m[5]),
+        ).getTime();
+      }
+
+      // Come formattaDataOraLocale, ma senza arrotondare: usata per riflettere
+      // in "Data" l'orario esatto del frame mostrato, non un valore digitato.
+      function formattaDataOraSenzaArrotondare(d) {
+        return (
+          d.getFullYear() +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getDate()).padStart(2, "0") +
+          "T" +
+          String(d.getHours()).padStart(2, "0") +
+          ":" +
+          String(d.getMinutes()).padStart(2, "0")
+        );
+      }
+
+      function etichettaIstante(istanteMs) {
+        const d = new Date(istanteMs);
+        const testo =
+          String(d.getDate()).padStart(2, "0") +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          d.getFullYear() +
+          " " +
+          String(d.getHours()).padStart(2, "0") +
+          ":" +
+          String(d.getMinutes()).padStart(2, "0");
+        const prefissi = campiAttivi
+          .map((c) => DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].etichetta)
+          .filter(Boolean);
+        return (prefissi.length ? prefissi.join(" + ") + " - " : "") + testo;
+      }
+
+      function aggiornaBottoniRadar() {
+        radarIndietro.disabled = indiceIstante <= 0;
+        radarAvanti.disabled = indiceIstante >= listaIstanti.length - 1;
+      }
+
+      // Unisce gli istanti di tutti i campi attivi in un'unica sequenza
+      // ordinata e senza duplicati: e' quella che sfoglia la barra condivisa.
+      function costruisciListaIstanti() {
+        const insieme = new Set();
+        campiAttivi.forEach((campo) => {
+          const lista = listaFrameCampo[campo];
+          if (!lista) return;
+          lista.nomi.forEach((nome) => {
+            const t = parseIstante(nome);
+            if (t !== null) insieme.add(t);
+          });
+        });
+        listaIstanti = Array.from(insieme).sort((a, b) => a - b);
+      }
+
+      function trovaIndiceIstantePiuVicino(target) {
+        if (!listaIstanti.length) return -1;
+        let migliore = 0;
+        let diffMigliore = Math.abs(listaIstanti[0] - target);
+        for (let i = 1; i < listaIstanti.length; i++) {
+          const diff = Math.abs(listaIstanti[i] - target);
+          if (diff < diffMigliore) {
+            diffMigliore = diff;
+            migliore = i;
+          }
+        }
+        return migliore;
+      }
+
+      // Indice, nella lista frame propria di un campo, piu' vicino a un
+      // istante (ms) qualsiasi: serve per mostrare ciascun campo attivo
+      // sull'istante condiviso, anche se le sue liste non sono allineate 1:1
+      // con quelle degli altri campi.
+      function indiceFrameCampoVicino(campo, istanteMs) {
+        const lista = listaFrameCampo[campo];
+        if (!lista) return -1;
+        let indiceMigliore = -1;
+        let differenzaMigliore = Infinity;
+        lista.nomi.forEach((nome, i) => {
+          const t = parseIstante(nome);
+          if (t === null) return;
+          const differenza = Math.abs(t - istanteMs);
+          if (differenza < differenzaMigliore) {
+            differenzaMigliore = differenza;
+            indiceMigliore = i;
+          }
+        });
+        return indiceMigliore;
+      }
+
+      function ottieniFrameCampo(campo, indice) {
+        const cache = cachePrecaricamento[campo];
+        let voce = cache.get(indice);
+        if (voce) return voce;
+
+        const descr = DESCRITTORI_CAMPO[campo];
+        if (descr.tipo === "immagine") {
+          voce = new Image();
+          voce.src =
+            "/immagine/" + indice + ".png?campo=" + encodeURIComponent(campo);
+        } else {
+          voce = fetch("/fulmini/dati/" + indice).then((r) => r.json());
+        }
+        cache.set(indice, voce);
+        return voce;
+      }
+
+      function precaricaFrameCampo(campo, indice) {
+        const lista = listaFrameCampo[campo];
+        if (!lista || indice < 0 || indice >= lista.totale) return;
+        ottieniFrameCampo(campo, indice);
+      }
+
+      // Mostra un campo attivo all'istante condiviso: trova il frame proprio
+      // di quel campo piu' vicino e lo disegna sulla mappa.
+      function mostraFrameCampo(campo, istanteMs) {
+        const lista = listaFrameCampo[campo];
+        if (!lista || lista.totale === 0) return;
+        const indice = indiceFrameCampoVicino(campo, istanteMs);
+        if (indice < 0) return;
+
+        const inizio = Math.max(0, indice - PRECARICA_RADAR);
+        for (let i = inizio; i < indice; i++) precaricaFrameCampo(campo, i);
+
+        const mioToken = ++richiestaCampo[campo];
+        const descr = DESCRITTORI_CAMPO[campo];
+        const frame = ottieniFrameCampo(campo, indice);
+
+        if (descr.tipo === "immagine") {
+          const disegna = () => {
+            if (mioToken !== richiestaCampo[campo]) return;
+            if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
+            livelliCampo[campo] = L.imageOverlay(frame.src, lista.bounds, {
+              opacity: 0.7,
+              interactive: false,
+              // Idee per interazioni:
+              // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
+              // Lettura del valore sotto al cursore: più interessante ma complesso.
+            }).addTo(mappa);
+          };
+          if (frame.complete && frame.naturalWidth > 0) {
+            disegna();
+          } else {
+            frame.addEventListener("load", disegna, { once: true });
+          }
+        } else {
+          frame.then((punti) => {
+            if (mioToken !== richiestaCampo[campo]) return;
+            if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
+            const gruppo = L.layerGroup();
+
+            punti.forEach((p) =>
+              L.marker([p.lat, p.lon], {
+                icon: iconaFulmine,
+                interactive: false,
+                // Idee per interazioni:
+                // Tooltip al passaggio del mouse con data/ora esatta del fulmine (la stessa logica di tooltip-stazione già in style.css).
+                // Popup al click con le coordinate precise.
+                // Se il CSV dei fulmini ha altre colonne oltre a LON/LAT (es. intensità in kA, polarità, tipo IC/CG) potremmo mostrarle nel tooltip/popup — ma al momento /fulmini/dati/<indice> in app.py legge solo ["LON", "LAT"], quindi andrebbe esteso lato backend se vuoi includerle.
+                // Come per le stazioni, converrebbe aggiungere un cerchio invisibile più grande sovrapposto all'icona (22×22 px è piccola per un click preciso).
+              }).addTo(gruppo),
+            );
+
+            livelliCampo[campo] = gruppo.addTo(mappa);
+          });
+        }
+      }
+
+      // Punto centrale della navigazione: sposta tutti i campi attivi
+      // sull'istante condiviso indicato (per indice in listaIstanti), e
+      // tiene "Data" allineata all'istante mostrato.
+      function mostraIstante(indice) {
+        if (indice < 0 || indice >= listaIstanti.length) return;
+        indiceIstante = indice;
+        aggiornaBottoniRadar();
+
+        const istante = listaIstanti[indice];
+        inputData.value = formattaDataOraSenzaArrotondare(new Date(istante));
+        radarEtichetta.textContent = etichettaIstante(istante);
+
+        campiAttivi.forEach((campo) => {
+          if (DESCRITTORI_CAMPO[campo]) mostraFrameCampo(campo, istante);
+        });
+      }
+
+      // Spegne UN campo temporale (non tutti): rimuove il suo layer e la sua
+      // lista, ma lascia intatto un eventuale secondo campo ancora attivo.
+      function spegniCampoTemporale(campo) {
+        if (livelliCampo[campo]) {
+          mappa.removeLayer(livelliCampo[campo]);
+          livelliCampo[campo] = null;
+        }
+        delete listaFrameCampo[campo];
+        delete cachePrecaricamento[campo];
+        delete richiestaCampo[campo];
+      }
+
+      // Riporta a video, per ciascuno dei (fino a 2) slot della colorbar, la
+      // colorbar del campo attivo corrispondente (se ne ha una) - a meno che
+      // il bottone "Colorbar" non le abbia disattivate del tutto.
+      function aggiornaColorbar() {
+        if (!colorbarVisibile) {
+          colorbarEl.forEach((el) => {
+            el.hidden = true;
+          });
+          return;
+        }
+        const colorbarAttive = campiAttivi
+          .map((c) => DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].colorbar)
+          .filter(Boolean);
+        colorbarEl.forEach((el, i) => {
+          if (colorbarAttive[i]) {
+            el.src = colorbarAttive[i];
+            el.hidden = false;
+          } else {
+            el.hidden = true;
+          }
+        });
+      }
+
+      // Istante attualmente mostrato (se c'e'), altrimenti il valore di
+      // "Data": usato come bersaglio quando si accende/spegne un campo o si
+      // cambia manualmente la data, per restare il piu' possibile fermi sul
+      // momento che si stava guardando.
+      function istanteCorrenteMs() {
+        if (indiceIstante >= 0 && indiceIstante < listaIstanti.length) {
+          return listaIstanti[indiceIstante];
+        }
+        return inputData.value
+          ? new Date(inputData.value).getTime()
+          : Date.now();
+      }
+
+      // Ricostruisce la lista istanti condivisa dai campi attivi e naviga al
+      // piu' vicino al bersaglio indicato. Nasconde/mostra i controlli in
+      // base a se c'e' almeno un campo temporale attivo.
+      function sincronizzaENavigaA(target) {
+        costruisciListaIstanti();
+        const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
+        controlliRadar.hidden = !temporaliAttivi;
+        if (!temporaliAttivi) return;
+
+        if (listaIstanti.length > 0) {
+          mostraIstante(trovaIndiceIstantePiuVicino(target));
+        } else {
+          indiceIstante = -1;
+          radarEtichetta.textContent = "(nessun dato)";
+          radarIndietro.disabled = true;
+          radarAvanti.disabled = true;
+        }
+      }
+
+      function radarVaiIndietro() {
+        if (indiceIstante > 0) mostraIstante(indiceIstante - 1);
+      }
+      function radarVaiAvanti() {
+        if (indiceIstante < listaIstanti.length - 1)
+          mostraIstante(indiceIstante + 1);
+      }
+
+      radarIndietro.addEventListener("click", radarVaiIndietro);
+      radarAvanti.addEventListener("click", radarVaiAvanti);
+
+      document.addEventListener("keydown", (e) => {
+        if (controlliRadar.hidden) return;
+
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          radarVaiIndietro();
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          radarVaiAvanti();
+        }
+      });
+
+      function urlListaCampo(campo) {
+        return DESCRITTORI_CAMPO[campo].tipo === "immagine"
+          ? "/radar/lista?campo=" + encodeURIComponent(campo)
+          : "/fulmini/lista";
+      }
+
+      // Accende UN campo temporale (puo' essercene un altro gia' attivo in
+      // parallelo): scarica la sua lista frame, poi sincronizza la
+      // navigazione condivisa restando il piu' vicino possibile a quanto si
+      // stava gia' guardando (o a "Data" se non c'era nulla).
+      function accendiCampoTemporale(campo) {
+        cachePrecaricamento[campo] = new Map();
+        richiestaCampo[campo] = 0;
+        controlliRadar.hidden = false;
+
+        const target = istanteCorrenteMs();
+        fetch(urlListaCampo(campo))
+          .then((r) => r.json())
+          .then((info) => {
+            listaFrameCampo[campo] = {
+              nomi: info.nomi,
+              bounds: info.bounds || null,
+              totale: info.totale,
+            };
+            sincronizzaENavigaA(target);
+          });
+      }
+
+      const IDLE_REFRESH_MS = 10 * 60 * 1000;
+      let ultimaAttivita = Date.now();
+
+      ["mousemove", "mousedown", "keydown", "wheel", "touchstart"].forEach(
+        (evento) =>
+          document.addEventListener(evento, () => {
+            ultimaAttivita = Date.now();
+          }),
+      );
+
+      function aggiornaListaSeNovita() {
+        const campiTemporali = campiAttivi.filter((c) => DESCRITTORI_CAMPO[c]);
+        if (!campiTemporali.length) return;
+
+        Promise.all(
+          campiTemporali.map((campo) =>
+            fetch(urlListaCampo(campo))
+              .then((r) => r.json())
+              .then((info) => ({ campo, info }))
+              .catch(() => null),
+          ),
+        ).then((risultati) => {
+          let cambiato = false;
+          risultati.forEach((risultato) => {
+            if (!risultato || !risultato.info.totale) return;
+            const { campo, info } = risultato;
+            const precedente = listaFrameCampo[campo];
+            const ultimoNoto = precedente
+              ? precedente.nomi[precedente.nomi.length - 1]
+              : undefined;
+            const ultimoNuovo = info.nomi[info.nomi.length - 1];
+            if (
+              precedente &&
+              info.totale === precedente.totale &&
+              ultimoNuovo === ultimoNoto
+            ) {
+              return; // nessuna novita' per questo campo
+            }
+            listaFrameCampo[campo] = {
+              nomi: info.nomi,
+              bounds: info.bounds || null,
+              totale: info.totale,
+            };
+            cachePrecaricamento[campo] = new Map(); // gli indici sono cambiati
+            cambiato = true;
+          });
+          if (cambiato) {
+            costruisciListaIstanti();
+            if (listaIstanti.length) mostraIstante(listaIstanti.length - 1);
+          }
+        });
+      }
+
+      setInterval(() => {
+        if (controlliRadar.hidden) return;
+        if (Date.now() - ultimaAttivita < IDLE_REFRESH_MS) return;
+        aggiornaListaSeNovita();
+      }, 60 * 1000);
+
+      // --- Finestre dei grafici stazione: se ne possono aprire piu' di una
+      // insieme, una per stazione. Ognuna e' creata dinamicamente: non c'e'
+      // piu' un unico markup statico da riusare, ma una Map codice -> stato.
+      const finestreGrafici = document.getElementById("finestreGrafici");
+      const finestreAperte = new Map(); // codice stazione -> { elFinestra, elGrafico, grafico, ... }
+      let zIndexGrafici = 2000; // prossimo z-index da assegnare (in cima alle altre)
+      let finestraAttiva = null; // codice dell'ultima finestra cliccata (per Esc)
+      let cascataGrafici = 0; // sfalsa la posizione iniziale di finestre successive
+
+      // Costruisce un pallino; hover = tooltip informativo, click = grafico
+      function costruisciMarker(s) {
+        const quota = s.quota != null ? s.quota + " m" : "n/d";
+
+        // Pallino visibile (solo estetico, non intercetta eventi)
+        L.circleMarker(
+          [s.lat, s.lon],
+          Object.assign({}, stilePallino, { interactive: false }),
+        ).addTo(gruppoStazioni);
+
+        // Cerchio invisibile più grande: allarga la zona di hover/click
+        L.circleMarker([s.lat, s.lon], {
+          radius: stilePallino.radius + 12,
+          stroke: false,
+          fillOpacity: 0,
+        })
+          .addTo(gruppoStazioni)
+          // Tendina informativa al passaggio del mouse (hover)
+          .bindTooltip(
+            "<strong>" +
+              s.nome +
+              "</strong><br>Codice: " +
+              s.codice +
+              "<br>Lat: " +
+              s.lat +
+              "<br>Lon: " +
+              s.lon,
+            {
+              direction: "top",
+              offset: [0, -4],
+              className: "tooltip-stazione",
+            },
+          )
+          .on("click", () => apriModale(s));
+      }
+
+      // Scarica le stazioni della SERIE indicata e ridisegna i pallini sulla mappa
+      function caricaStazioni(serie) {
+        fetch("/stazioni?serie=" + encodeURIComponent(serie))
+          .then((r) => (r.ok ? r.json() : []))
+          .then((stazioni) => {
+            gruppoStazioni.clearLayers();
+            stazioni.forEach(costruisciMarker);
+          })
+          .catch(() => gruppoStazioni.clearLayers());
+      }
+
+      // Porta una finestra in primo piano e la segna come "attiva" (quella
+      // che Esc chiudera')
+      function portaInPrimoPiano(codice) {
+        const f = finestreAperte.get(codice);
+        if (!f) return;
+        zIndexGrafici += 1;
+        f.elFinestra.style.zIndex = zIndexGrafici;
+        finestraAttiva = codice;
+      }
+
+      // Apre la finestra per una stazione (o la porta in primo piano se e'
+      // gia' aperta) e ne disegna il grafico. Piu' finestre possono restare
+      // aperte insieme, una per stazione.
+      function apriModale(s) {
+        if (finestreAperte.has(s.codice)) {
+          portaInPrimoPiano(s.codice);
+          return;
+        }
+        creaFinestraGrafico(s);
+      }
+
+      function creaFinestraGrafico(s) {
+        const elFinestra = document.createElement("div");
+        elFinestra.className = "modale-finestra finestra-grafico";
+
+        const elChiudi = document.createElement("button");
+        elChiudi.className = "modale-chiudi";
+        elChiudi.setAttribute("aria-label", "Chiudi");
+        elChiudi.innerHTML = "&times;";
+
+        const elTitolo = document.createElement("div");
+        elTitolo.className = "titolo-popup";
+        elTitolo.textContent = s.nome;
+        elTitolo.style.fontSize = "1.2rem";
+        elTitolo.style.textAlign = "center";
+
+        const elGrafico = document.createElement("div");
+        elGrafico.className = "grafico-popup";
+        elGrafico.textContent = "(carico...)";
+
+        elFinestra.append(elChiudi, elTitolo, elGrafico);
+        finestreGrafici.appendChild(elFinestra);
+
+        // Posizione iniziale: centrata come prima per la prima finestra, poi
+        // a cascata (leggero sfalsamento) per quelle aperte successivamente
+        const larghezza = 800;
+        const altezza = 480;
+        const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
+        const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
+        const offset = (cascataGrafici++ % 8) * 28;
+        elFinestra.style.position = "fixed";
+        elFinestra.style.left = baseX + offset + "px";
+        elFinestra.style.top = baseY + offset + "px";
+
+        const stato = {
+          serie: serieAttiva, // la SERIE attiva al momento dell'apertura
+          elFinestra,
+          elGrafico,
+          grafico: null,
+          appenaCreato: false,
+        };
+        finestreAperte.set(s.codice, stato);
+
+        elChiudi.addEventListener("click", () =>
+          chiudiFinestraGrafico(s.codice),
+        );
+        // Porta in primo piano al click su un punto qualsiasi della finestra
+        elFinestra.addEventListener("mousedown", () =>
+          portaInPrimoPiano(s.codice),
+        );
+
+        rendiTrascinabile(elFinestra, elTitolo);
+
+        // ECharts non si ridimensiona da solo se cambiano le dimensioni del
+        // contenitore per altre vie (qui: trascinando l'angolo della
+        // finestra): lo osservo io. Ignoro i resize nell'istante subito dopo
+        // la creazione, altrimenti interromperei l'animazione d'apertura.
+        const osservatore = new ResizeObserver(() => {
+          if (stato.grafico && !stato.appenaCreato) stato.grafico.resize();
+        });
+        osservatore.observe(elGrafico);
+        stato.osservatore = osservatore;
+
+        portaInPrimoPiano(s.codice);
+        disegnaGraficoFinestra(s.codice);
+      }
+
+      // Chiude una finestra: libera l'istanza ECharts e l'observer
+      function chiudiFinestraGrafico(codice) {
+        const f = finestreAperte.get(codice);
+        if (!f) return;
+        if (f.grafico) f.grafico.dispose();
+        f.osservatore.disconnect();
+        f.elFinestra.remove();
+        finestreAperte.delete(codice);
+        if (finestraAttiva === codice) finestraAttiva = null;
+      }
+
+      // Chiude tutte le finestre grafico aperte (es. al cambio di SERIE nel
+      // menu'). Copio prima le chiavi in un array: chiudiFinestraGrafico
+      // modifica la Map, e mutarla durante un forEach diretto su di essa
+      // salterebbe delle voci.
+      function chiudiTutteLeFinestreGrafico() {
+        Array.from(finestreAperte.keys()).forEach(chiudiFinestraGrafico);
+      }
+
+      // Scarica la SERIE temporale di una stazione e la disegna nella sua finestra
+      function disegnaGraficoFinestra(codice) {
+        const f = finestreAperte.get(codice);
+        if (!f) return;
+        const stato = statoMenu(); // { data, serie }
+        const url =
+          "/serie/" +
+          encodeURIComponent(codice) +
+          "?serie=" +
+          encodeURIComponent(f.serie) +
+          "&data=" +
+          encodeURIComponent(stato.data.slice(0, 10)); // solo AAAA-MM-GG: il backend lavora per giorno intero
+
+        fetch(url)
+          .then((r) => {
+            if (!r.ok) throw new Error("nessun dato");
+            return r.json();
+          })
+          .then((d) => {
+            if (!finestreAperte.has(codice)) return; // chiusa nel frattempo
+
+            f.elGrafico.classList.add("nessun-placeholder");
+            if (!echarts.getInstanceByDom(f.elGrafico)) {
+              f.elGrafico.textContent = ""; // libero il contenitore per ECharts
+            }
+            f.grafico = Grafici.disegna(f.elGrafico, d, f.serie);
+            f.appenaCreato = true;
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                f.appenaCreato = false;
+              });
+            });
+          })
+          .catch(() => {
+            if (!finestreAperte.has(codice)) return;
+            if (f.grafico) {
+              f.grafico.dispose();
+              f.grafico = null;
+            }
+            f.elGrafico.classList.remove("nessun-placeholder");
+            f.elGrafico.textContent =
+              "(nessun dato per data/serie selezionate)";
+          });
+      }
+
+      // La finestra e' responsive (vw/vh): riadatto tutti i grafici aperti al resize
+      window.addEventListener("resize", () => {
+        finestreAperte.forEach((f) => {
+          if (f.grafico) f.grafico.resize();
+        });
+      });
+
+      // Esc chiude l'ultima finestra grafico attiva (quella cliccata/aperta piu' di recente)
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && finestraAttiva) {
+          chiudiFinestraGrafico(finestraAttiva);
+        }
+      });
+
+      // Rende trascinabile una finestra modale tramite una "maniglia" (es.
+      // il titolo): al primo trascinamento passa da centrata (flex, via
+      // .modale-overlay) a posizionata liberamente (position: fixed, in
+      // px), e resta li' finche' non la si trascina di nuovo (anche
+      // chiudendo e riaprendo il modale).
+      function rendiTrascinabile(finestra, maniglia) {
+        let trascinando = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        maniglia.addEventListener("mousedown", (e) => {
+          trascinando = true;
+          const rect = finestra.getBoundingClientRect();
+          offsetX = e.clientX - rect.left;
+          offsetY = e.clientY - rect.top;
+          finestra.style.position = "fixed";
+          finestra.style.left = rect.left + "px";
+          finestra.style.top = rect.top + "px";
+          e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+          if (!trascinando) return;
+          finestra.style.left = e.clientX - offsetX + "px";
+          finestra.style.top = e.clientY - offsetY + "px";
+        });
+
+        document.addEventListener("mouseup", () => {
+          trascinando = false;
+        });
+      }
+
+      // Registro dei gruppi di scelte esclusive: permette a piu' contenitori
+      // di spuntine di restare sincronizzati sullo stesso stato, anche se
+      // sono elementi DOM diversi (utile se in futuro si aggiungono altri
+      // punti di accesso oltre al menu "Layer").
+      const gruppiScelteEsclusive = {}; // nomeGruppo -> { contenitori: [], alCambio }
+
+      function sincronizzaGruppoScelte(nomeGruppo, idScelto) {
+        gruppiScelteEsclusive[nomeGruppo].contenitori.forEach((contenitore) => {
+          contenitore.querySelectorAll("input[type=checkbox]").forEach((c) => {
+            c.checked = c.dataset.id === idScelto;
+          });
+        });
+      }
+
+      // Costruisce, dentro "contenitore", un gruppo di spuntine a scelta
+      // esclusiva (una sola, o nessuna, alla volta), una per ciascuna voce
+      // di "definizioni" ({id, nome, ...}). idDefault (o null) e' quella
+      // spuntata all'avvio; alCambio(id|null) viene chiamata ad ogni cambio.
+      // "nomeGruppo" raggruppa piu' chiamate (contenitori diversi) sullo
+      // stesso stato: cambiando una spuntina si aggiornano anche le altre.
+      function registraScelteEsclusive(
+        nomeGruppo,
+        contenitore,
+        definizioni,
+        idDefault,
+        alCambio,
+      ) {
+        if (!gruppiScelteEsclusive[nomeGruppo]) {
+          gruppiScelteEsclusive[nomeGruppo] = { contenitori: [], alCambio };
+        }
+        gruppiScelteEsclusive[nomeGruppo].contenitori.push(contenitore);
+
+        definizioni.forEach((def) => {
+          const etichetta = document.createElement("label");
+          etichetta.className = "scelta-mappa";
+
+          const casella = document.createElement("input");
+          casella.type = "checkbox";
+          casella.dataset.id = def.id;
+          casella.checked = def.id === idDefault;
+
+          etichetta.appendChild(casella);
+          etichetta.appendChild(document.createTextNode(def.nome));
+          contenitore.appendChild(etichetta);
+        });
+
+        contenitore.addEventListener("change", (e) => {
+          const casella = e.target;
+          if (casella.type !== "checkbox") return;
+
+          const idScelto = casella.checked ? casella.dataset.id : null;
+          sincronizzaGruppoScelte(nomeGruppo, idScelto);
+          alCambio(idScelto);
+        });
+      }
+
+      registraScelteEsclusive(
+        "mappa",
+        document.getElementById("scelteMappaLayer"),
+        DEFINIZIONI_MAPPE,
+        "03",
+        impostaMappa,
+      );
+
+      registraScelteEsclusive(
+        "sentieri",
+        document.getElementById("scelteSentieriLayer"),
+        DEFINIZIONI_SENTIERI,
+        null, // nessun sentiero attivo di default
+        impostaSentiero,
+      );
+
+      // --- Controlli del menù ---
+      const inputData = document.getElementById("data");
+      const bottoniSerie = document.querySelectorAll(".bottone-serie"); // 1D
+      const bottoniCampo = document.querySelectorAll(".bottone-campo"); // 2D
+      const bottoneAnimazione = document.getElementById("bottoneAnimazione");
+      const bottoneAnimazioneIcona = document.getElementById(
+        "bottoneAnimazioneIcona",
+      );
+      const bottoneColorbar = document.getElementById("bottoneColorbar");
+      const bottoneColorbarIcona = document.getElementById(
+        "bottoneColorbarIcona",
+      );
+      let serieAttiva = null; // nessuna serie 1D selezionata di default
+      let campiAttivi = []; // fino a MAX_CAMPI_ATTIVI campi 2D attivi insieme
+      const MAX_CAMPI_ATTIVI = 2;
+
+      // Formatta un Date in stringa locale per <input type="datetime-local">
+      // (componenti locali, non UTC), arrotondando i minuti per difetto al
+      // multiplo di 5 piu' vicino (coerente con lo step="300" dell'input)
+      function formattaDataOraLocale(d) {
+        d.setMinutes(d.getMinutes() - (d.getMinutes() % 5), 0, 0);
+        return (
+          d.getFullYear() +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getDate()).padStart(2, "0") +
+          "T" +
+          String(d.getHours()).padStart(2, "0") +
+          ":" +
+          String(d.getMinutes()).padStart(2, "0")
+        );
+      }
+
+      // Data/ora odierna come valore iniziale
+      inputData.value = formattaDataOraLocale(new Date());
+
+      // Riporta il campo temporale attivo (radar/riflettivita/fulmini) al
+      // frame piu' vicino alla Data corrente, e ridisegna il grafico della
+      // stazione se una finestra e' aperta (disegnaGrafico non fa nulla se
+      // non c'e' nessuna stazione aperta: e' gia' "sicura" da richiamare).
+      function aggiornaConData() {
+        if (campiAttivi.some((c) => DESCRITTORI_CAMPO[c])) {
+          sincronizzaENavigaA(
+            inputData.value ? new Date(inputData.value).getTime() : Date.now(),
+          );
+        }
+        finestreAperte.forEach((_, codice) => disegnaGraficoFinestra(codice));
+      }
+
+      // Il browser limita solo le frecce su/giu' al multiplo di 5: i minuti
+      // digitati a mano li arrotondo qui. Ascolto sia "input" (per correggere
+      // dopo una breve pausa, senza aspettare che l'utente clicchi altrove)
+      // sia "change" (selezione dal calendario, o Invio/uscita dal campo:
+      // corregge subito). In entrambi i casi, una volta corretta la data,
+      // aggiorno anche campo attivo e grafico aperto. Il setTimeout e'
+      // necessario: riassegnando .value nello stesso giro dell'evento il
+      // valore interno si aggiorna ma il sotto-campo minuti mostrato a video
+      // (bug noto di Chrome/Edge sui datetime-local) resta quello vecchio
+      // finche' non lo si tocca di nuovo.
+      function correggiMinutiInputData() {
+        if (!inputData.value) return;
+        const corretto = formattaDataOraLocale(new Date(inputData.value));
+        setTimeout(() => {
+          inputData.value = corretto;
+          aggiornaConData();
+        }, 0);
+      }
+      let timerCorrezioneMinuti = null;
+      function rimandaCorrezioneMinuti() {
+        clearTimeout(timerCorrezioneMinuti);
+        timerCorrezioneMinuti = setTimeout(correggiMinutiInputData, 700);
+      }
+      // Chrome puo' emettere "change" gia' non appena il valore diventa
+      // completo, cioe' subito dopo l'ultima cifra dei minuti, senza che
+      // l'utente esca dal campo: per questo anche "change" rimanda la
+      // correzione invece di applicarla subito, cosi' il numero digitato
+      // resta visibile per un attimo. Solo con "blur" (l'utente lascia
+      // davvero il campo) correggo immediatamente, senza attesa.
+      inputData.addEventListener("input", rimandaCorrezioneMinuti);
+      inputData.addEventListener("change", rimandaCorrezioneMinuti);
+      inputData.addEventListener("blur", () => {
+        clearTimeout(timerCorrezioneMinuti);
+        correggiMinutiInputData();
+      });
+      // Invio conferma la data digitata a mano: esce dal campo (blur), il
+      // che fa scattare "blur" sopra e quindi correzione + aggiornamento
+      inputData.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          inputData.blur();
+        }
+      });
+
+      // Rotella del mouse sopra il campo Data (solo li'): scorre di 5 minuti
+      // per notch, in su = avanti, in giu' = indietro. { passive: false } e'
+      // necessario perche' preventDefault() funzioni ed eviti lo scroll
+      // della pagina mentre si passa sopra il campo.
+      inputData.addEventListener(
+        "wheel",
+        (e) => {
+          if (!inputData.value) return;
+          e.preventDefault();
+          const d = new Date(inputData.value);
+          d.setMinutes(d.getMinutes() + (e.deltaY < 0 ? 5 : -5));
+          // Nota: ho messo "scroll in su = avanti nel tempo" (convenzione tipo spinner); se la preferisci invertita, basta scambiare 5/-5 nel ? :
+          inputData.value = formattaDataOraLocale(d);
+          aggiornaConData();
+        },
+        { passive: false },
+      );
+
+      // Stato corrente del menù: la SERIE 1D selezionata e la data
+      function statoMenu() {
+        return {
+          data: inputData.value,
+          serie: serieAttiva,
+        };
+      }
+
+      // --- Collasso del menù laterale ---
+      const linguettaMenu = document.getElementById("linguettaMenu");
+      linguettaMenu.addEventListener("click", () => {
+        const collassato = document
+          .getElementById("menu")
+          .classList.toggle("collassato");
+        linguettaMenu.classList.toggle("collassata", collassato);
+        linguettaMenu.textContent = collassato ? "›" : "‹";
+
+        // Durante la transizione CSS (0.25s, vedi #menu in style.css) ricalcolo
+        // le dimensioni della mappa ad ogni frame, cosi' i tile seguono il bordo
+        // del menu invece di restare storti fino allo scatto finale
+        const inizio = performance.now();
+        const durata = 260; // ms, leggermente sopra i 0.25s della transizione CSS
+        function aggiornaMappa(adesso) {
+          mappa.invalidateSize(false);
+          if (adesso - inizio < durata) requestAnimationFrame(aggiornaMappa);
+        }
+        requestAnimationFrame(aggiornaMappa);
+      });
+
+      // Cambio SERIE (1D) tramite bottoni: interruttore on/off, come per i campi.
+      // Selezionare una serie carica i pallini; ri-cliccarla (o la stessa) li toglie.
+      function selezionaSerie(serie) {
+        const giaAttiva = serie === serieAttiva;
+        bottoniSerie.forEach((b) => b.classList.remove("attivo"));
+        chiudiTutteLeFinestreGrafico();
+        if (giaAttiva) {
+          serieAttiva = null;
+          gruppoStazioni.clearLayers(); // nessuna serie -> nessun pallino
+        } else {
+          serieAttiva = serie;
+          bottoniSerie.forEach((b) =>
+            b.classList.toggle("attivo", b.dataset.serie === serie),
+          );
+          caricaStazioni(serie);
+        }
+      }
+      bottoniSerie.forEach((b) =>
+        b.addEventListener("click", () => selezionaSerie(b.dataset.serie)),
+      );
+
+      // Cambio CAMPO (2D) tramite bottoni: fino a MAX_CAMPI_ATTIVI (2) campi
+      // possono restare attivi insieme. Ri-cliccare un campo attivo lo
+      // spegne; se se ne sceglie un terzo mentre 2 sono gia' attivi, i due
+      // precedenti si spengono e si riparte da zero col nuovo.
+      function selezionaCampo(campo) {
+        const giaAttivo = campiAttivi.includes(campo);
+
+        if (giaAttivo) {
+          campiAttivi = campiAttivi.filter((c) => c !== campo);
+          if (DESCRITTORI_CAMPO[campo]) {
+            spegniCampoTemporale(campo);
+            sincronizzaENavigaA(istanteCorrenteMs());
+          }
+        } else {
+          if (campiAttivi.length >= MAX_CAMPI_ATTIVI) {
+            campiAttivi.forEach((c) => {
+              if (DESCRITTORI_CAMPO[c]) spegniCampoTemporale(c);
+            });
+            campiAttivi = [];
+          }
+          campiAttivi.push(campo);
+          if (DESCRITTORI_CAMPO[campo]) accendiCampoTemporale(campo);
+        }
+
+        bottoniCampo.forEach((b) =>
+          b.classList.toggle("attivo", campiAttivi.includes(b.dataset.campo)),
+        );
+        aggiornaColorbar();
+
+        // Il bottone Animazione ha senso solo con almeno un campo temporale
+        // attivo (radar/riflettivita/fulmini); per le stazioni non si applica.
+        const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
+        bottoneAnimazione.disabled = !temporaliAttivi;
+        if (!temporaliAttivi) fermaAnimazione();
+        else if (animazioneAttiva) riallineaFinestraAnimazione();
+      }
+
+      bottoniCampo.forEach((b) =>
+        b.addEventListener("click", () => selezionaCampo(b.dataset.campo)),
+      );
+
+      // --- Animazione: loop sugli ultimi N minuti di un campo attivo.
+      // Non ha senso per le stazioni (1D): riguarda solo i campi temporali
+      // (radar/riflettivita/fulmini).
+      const ANIMAZIONE_FINESTRA_MIN = 90; // N: quanti minuti indietro copre il loop
+      const ANIMAZIONE_INTERVALLO_MS = 500; // ~2 frame al secondo
+      const ANIMAZIONE_CONTROLLO_NOVITA_MS = 15000; // ogni quanto, durante il loop, controllo nuovi frame (solo se sul bordo "live")
+
+      let animazioneAttiva = false;
+      let animazioneTimerFrame = null;
+      let animazioneTimerNovita = null;
+      let finestraAnimazione = []; // istanti (ms) della finestra corrente, ordinati
+      let posizioneAnimazione = 0; // indice corrente dentro finestraAnimazione
+      let animazioneSuBordoLive = false; // true se il bordo destro e' il dato piu' recente
+      let animazioneBordoDestro = null; // ultimo bordo destro (ms) usato
+
+      // Ricalcola la finestra [bordoDestro - N minuti, bordoDestro] a partire
+      // dalla lista istanti condivisa gia' costruita (listaIstanti).
+      function costruisciFinestraAnimazione(bordoDestro) {
+        const bordoSinistro = bordoDestro - ANIMAZIONE_FINESTRA_MIN * 60 * 1000;
+        finestraAnimazione = listaIstanti.filter(
+          (t) => t >= bordoSinistro && t <= bordoDestro,
+        );
+        animazioneBordoDestro = bordoDestro;
+      }
+
+      // Ricalcola la finestra sullo stesso bordo destro di prima (utile se
+      // cambia l'insieme dei campi attivi mentre l'animazione e' in corso,
+      // es. se ne disattivi uno lasciandone un altro): mantiene la posizione
+      // piu' vicina possibile a quella che si stava mostrando.
+      function riallineaFinestraAnimazione() {
+        const istanteMostrato = finestraAnimazione[posizioneAnimazione];
+        costruisciFinestraAnimazione(animazioneBordoDestro);
+        if (!finestraAnimazione.length) {
+          fermaAnimazione();
+          return;
+        }
+
+        let nuovaPosizione = 0;
+        let differenzaMigliore = Infinity;
+        finestraAnimazione.forEach((t, i) => {
+          const differenza = Math.abs(t - istanteMostrato);
+          if (differenza < differenzaMigliore) {
+            differenzaMigliore = differenza;
+            nuovaPosizione = i;
+          }
+        });
+        posizioneAnimazione = nuovaPosizione;
+
+        const indice = listaIstanti.indexOf(
+          finestraAnimazione[posizioneAnimazione],
+        );
+        if (indice >= 0) mostraIstante(indice);
+      }
+
+      function avviaAnimazione() {
+        if (!campiAttivi.some((c) => DESCRITTORI_CAMPO[c])) return;
+        if (!listaIstanti.length) return;
+
+        const bordoDestro = istanteCorrenteMs();
+        costruisciFinestraAnimazione(bordoDestro);
+        if (!finestraAnimazione.length) return;
+
+        // "Sul bordo live" = il bordo destro scelto e' il dato piu' recente
+        // disponibile: solo in questo caso ha senso controllare
+        // periodicamente l'arrivo di nuovi frame (una data nel passato non
+        // fara' mai comparire nuovi frame dentro la sua finestra, fissa).
+        animazioneSuBordoLive =
+          bordoDestro >= listaIstanti[listaIstanti.length - 1];
+
+        posizioneAnimazione = 0;
+        animazioneAttiva = true;
+        bottoneAnimazione.classList.add("attivo");
+        bottoneAnimazioneIcona.src =
+          "{{ url_for('static', filename='icone/pausa.svg') }}";
+
+        mostraIstante(listaIstanti.indexOf(finestraAnimazione[0]));
+
+        animazioneTimerFrame = setInterval(
+          animazioneAvanzaFrame,
+          ANIMAZIONE_INTERVALLO_MS,
+        );
+        if (animazioneSuBordoLive) {
+          animazioneTimerNovita = setInterval(
+            animazioneControllaNovita,
+            ANIMAZIONE_CONTROLLO_NOVITA_MS,
+          );
+        }
+      }
+
+      function fermaAnimazione() {
+        animazioneAttiva = false;
+        bottoneAnimazione.classList.remove("attivo");
+        bottoneAnimazioneIcona.src =
+          "{{ url_for('static', filename='icone/play.svg') }}";
+        clearInterval(animazioneTimerFrame);
+        clearInterval(animazioneTimerNovita);
+        animazioneTimerFrame = null;
+        animazioneTimerNovita = null;
+      }
+
+      function animazioneAvanzaFrame() {
+        if (!finestraAnimazione.length) return;
+        posizioneAnimazione =
+          (posizioneAnimazione + 1) % finestraAnimazione.length;
+        const indice = listaIstanti.indexOf(
+          finestraAnimazione[posizioneAnimazione],
+        );
+        if (indice >= 0) mostraIstante(indice);
+      }
+
+      // Stessa logica di raccolta dati di aggiornaListaSeNovita, ma qui non
+      // si salta subito all'ultimo istante: la finestra (di durata fissa)
+      // si sposta in avanti, e il loop riprende dal primo istante nuovo,
+      // non da dove si trovava nel giro precedente (che potrebbe essere
+      // ovunque nella vecchia finestra, per via del giro continuo).
+      function animazioneControllaNovita() {
+        const campiTemporali = campiAttivi.filter((c) => DESCRITTORI_CAMPO[c]);
+        if (!campiTemporali.length) return;
+
+        Promise.all(
+          campiTemporali.map((campo) =>
+            fetch(urlListaCampo(campo))
+              .then((r) => r.json())
+              .then((info) => ({ campo, info }))
+              .catch(() => null),
+          ),
+        ).then((risultati) => {
+          if (!animazioneAttiva) return; // fermata nel frattempo
+
+          let cambiato = false;
+          risultati.forEach((risultato) => {
+            if (!risultato || !risultato.info.totale) return;
+            const { campo, info } = risultato;
+            const precedente = listaFrameCampo[campo];
+            const ultimoNoto = precedente
+              ? precedente.nomi[precedente.nomi.length - 1]
+              : undefined;
+            const ultimoNuovo = info.nomi[info.nomi.length - 1];
+            if (
+              precedente &&
+              info.totale === precedente.totale &&
+              ultimoNuovo === ultimoNoto
+            ) {
+              return;
+            }
+            listaFrameCampo[campo] = {
+              nomi: info.nomi,
+              bounds: info.bounds || null,
+              totale: info.totale,
+            };
+            cachePrecaricamento[campo] = new Map();
+            cambiato = true;
+          });
+          if (!cambiato) return;
+
+          const vecchioBordoDestro = animazioneBordoDestro;
+          costruisciListaIstanti();
+          if (!listaIstanti.length) return;
+
+          // Finestra di durata fissa: il nuovo bordo destro e' il nuovo
+          // ultimo istante disponibile, quello sinistro lo segue di conseguenza.
+          costruisciFinestraAnimazione(listaIstanti[listaIstanti.length - 1]);
+
+          // Riprendo dal primo istante nuovo (successivo al vecchio bordo
+          // destro), non da dove si trovava il loop nel suo giro precedente.
+          let posizioneRipresa = finestraAnimazione.findIndex(
+            (t) => t > vecchioBordoDestro,
+          );
+          if (posizioneRipresa < 0)
+            posizioneRipresa = finestraAnimazione.length - 1;
+          posizioneAnimazione = posizioneRipresa;
+
+          const indice = listaIstanti.indexOf(
+            finestraAnimazione[posizioneAnimazione],
+          );
+          if (indice >= 0) mostraIstante(indice);
+        });
+      }
+
+      bottoneAnimazione.addEventListener("click", () => {
+        if (animazioneAttiva) fermaAnimazione();
+        else avviaAnimazione();
+      });
+
+      bottoneColorbar.addEventListener("click", () => {
+        colorbarVisibile = !colorbarVisibile;
+        bottoneColorbar.classList.toggle("attivo", colorbarVisibile);
+        bottoneColorbarIcona.src = colorbarVisibile
+          ? "{{ url_for('static', filename='icone/on.svg') }}"
+          : "{{ url_for('static', filename='icone/off.svg') }}";
+        aggiornaColorbar();
+      });
+
+      const bottoneLayer = document.getElementById("bottoneLayer");
+      const modaleLayer = document.getElementById("modaleLayer");
+      bottoneLayer.addEventListener("click", () => {
+        modaleLayer.hidden = false;
+        bottoneLayer.classList.add("attivo");
+      });
+      document
+        .getElementById("modaleLayerChiudi")
+        .addEventListener("click", () => {
+          modaleLayer.hidden = true;
+          bottoneLayer.classList.remove("attivo");
+        });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modaleLayer.hidden) {
+          modaleLayer.hidden = true;
+          bottoneLayer.classList.remove("attivo");
+        }
+      });
+      rendiTrascinabile(
+        modaleLayer.querySelector(".modale-finestra"),
+        modaleLayer.querySelector(".titolo-popup"),
+      );
+
+      // All'avvio nessuna serie è selezionata: la mappa parte senza pallini.
+      // I pallini compaiono quando l'utente sceglie una serie.
+    </script>
+  </body>
+</html>
