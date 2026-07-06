@@ -149,12 +149,16 @@ def radar_lista():
     frame = trova_frame(cartella, "png")
     if not frame:
         return jsonify({"totale": 0, "bounds": None, "nomi": []})
-    with open(os.path.splitext(frame[0])[0] + ".json") as f:
-        sidecar = json.load(f)
+    try:
+        with open(os.path.splitext(frame[0])[0] + ".json") as f:
+            sidecar = json.load(f)
+        bounds = sidecar["bounds"]
+    except (OSError, ValueError, KeyError):
+        bounds = None
     nomi = [os.path.splitext(os.path.basename(p))[0] for p in frame]
     return jsonify({
         "totale": len(frame),
-        "bounds": sidecar["bounds"],
+        "bounds": bounds,
         "nomi": nomi,
     })
 
@@ -192,7 +196,8 @@ def fulmini_dati(indice):
     if indice < 0 or indice >= len(frame):
         abort(404)
     df = pd.read_csv(frame[indice], usecols=["LON", "LAT"]) / FATTORE_FULMINI
-    punti = df.rename(columns={"LON": "lon", "LAT": "lat"}).to_dict(orient="records")
+    punti = df.rename(columns={"LON": "lon", "LAT": "lat"}).to_dict(
+        orient="records")
     return jsonify(punti)
 
 
