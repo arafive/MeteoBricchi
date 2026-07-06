@@ -19,6 +19,7 @@ Aggiungi campi Hindex e Wind Chill (vedi mail di Davide).
 Salva in webp invece che png.
 Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
 Se seleziono un campo, si chiudono tutte le schede stazioni aperte.
+BACO in run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere
 
 ###########
 
