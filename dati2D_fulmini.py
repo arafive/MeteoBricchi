@@ -49,6 +49,7 @@ def f_query(coord, t1_UTC, t2_UTC):
 
 # %%
 area = (4.5, 20.4, 35.0, 47.8) # italia
+sovrascrivi = True
 
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None).floor('5min')
 # I fulmini hanno bisogno di qualche minuto per essere caricati, quindi aspetto 10 minuti
@@ -73,7 +74,7 @@ for adesso_0_UTC in lista_tempi:
     nome_file_csv = f"fulmini_{adesso_0_UTC.strftime(format='%Y-%m-%d_%H%M')}.csv"
     print(f'{nome_file_csv=}')
     
-    if os.path.exists(f'{cartella_file_csv}/{nome_file_csv}'):
+    if os.path.exists(f'{cartella_file_csv}/{nome_file_csv}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
         try:
             exit()
