@@ -379,7 +379,6 @@ window.Grafici = (function () {
             "Obs Tmean",
             "Raw Tmean",
             "Clima Tmean",
-            { name: "__sep3__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep4__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep5__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep6__", icon: "none" }, // separatore invisibile tra i due gruppi

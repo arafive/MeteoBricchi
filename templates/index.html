@@ -1115,7 +1115,7 @@
           portaInPrimoPiano(s.codice),
         );
 
-        rendiTrascinabile(elFinestra, elTitolo);
+        stato.smontaTrascinamento = rendiTrascinabile(elFinestra, elTitolo);
 
         // ECharts non si ridimensiona da solo se cambiano le dimensioni del
         // contenitore per altre vie (qui: trascinando l'angolo della
@@ -1137,6 +1137,7 @@
         if (!f) return;
         if (f.grafico) f.grafico.dispose();
         f.osservatore.disconnect();
+        f.smontaTrascinamento();
         f.elFinestra.remove();
         finestreAperte.delete(codice);
         if (finestraAttiva === codice) finestraAttiva = null;
@@ -1230,15 +1231,24 @@
           e.preventDefault();
         });
 
-        document.addEventListener("mousemove", (e) => {
+        const gestisciMousemove = (e) => {
           if (!trascinando) return;
           finestra.style.left = e.clientX - offsetX + "px";
           finestra.style.top = e.clientY - offsetY + "px";
-        });
-
-        document.addEventListener("mouseup", () => {
+        };
+        const gestisciMouseup = () => {
           trascinando = false;
-        });
+        };
+        document.addEventListener("mousemove", gestisciMousemove);
+        document.addEventListener("mouseup", gestisciMouseup);
+
+        // Chi crea finestre "usa e getta" (i popup dei grafici stazione)
+        // deve chiamare questa funzione alla chiusura, altrimenti questi due
+        // listener su document restano per sempre anche a finestra chiusa.
+        return function smonta() {
+          document.removeEventListener("mousemove", gestisciMousemove);
+          document.removeEventListener("mouseup", gestisciMouseup);
+        };
       }
 
       // Registro dei gruppi di scelte esclusive: permette a piu' contenitori
