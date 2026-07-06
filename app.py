@@ -19,6 +19,12 @@ CARTELLE_RADAR = {
     "riflettivita": os.path.join(CARTELLA_CAMPI, "radar_vmi"),
 }
 CARTELLA_FULMINI = os.path.join(CARTELLA_CAMPI, "fulmini")
+# Prodotti satellite: stessa idea di CARTELLE_RADAR, ma frame in .webp e
+# cadenza di 10 minuti invece di 5.
+CARTELLE_SATELLITE = {
+    "geocolour": os.path.join(CARTELLA_CAMPI, "geocolour"),
+    "sandwich": os.path.join(CARTELLA_CAMPI, "sandwich"),
+}
 
 # Colonne del CSV fulmini gia' moltiplicate per 10000 (interi): vanno
 # riportate in unita' reali dividendo per 10000 prima dell'uso.
@@ -186,6 +192,47 @@ def fulmini_lista():
     frame = trova_frame(CARTELLA_FULMINI, "csv")
     nomi = [os.path.splitext(os.path.basename(p))[0] for p in frame]
     return jsonify({"totale": len(frame), "nomi": nomi})
+
+
+@app.route("/satellite/lista")
+def satellite_lista():
+    """Elenco frame satellite (webp) + bounds, come /radar/lista.
+    Parametro query: ?prodotto=geocolour|sandwich."""
+    prodotto = request.args.get("prodotto", "")
+    cartella = CARTELLE_SATELLITE.get(prodotto)
+    if cartella is None:
+        abort(404)
+    frame = trova_frame(cartella, "webp")
+    if not frame:
+        return jsonify({"totale": 0, "bounds": None, "nomi": []})
+    try:
+        with open(os.path.splitext(frame[0])[0] + ".json") as f:
+            sidecar = json.load(f)
+        bounds = sidecar["bounds"]
+    except (OSError, ValueError, KeyError):
+        bounds = None
+    nomi = [os.path.splitext(os.path.basename(p))[0] for p in frame]
+    return jsonify({
+        "totale": len(frame),
+        "bounds": bounds,
+        "nomi": nomi,
+    })
+
+
+@app.route("/satellite/immagine/<int:indice>.webp")
+def satellite_immagine(indice):
+    """Stesso parametro ?prodotto= di /satellite/lista: l'indice ha senso
+    solo riferito alla stessa cartella con cui e' stata costruita la lista."""
+    prodotto = request.args.get("prodotto", "")
+    cartella = CARTELLE_SATELLITE.get(prodotto)
+    if cartella is None:
+        abort(404)
+    frame = trova_frame(cartella, "webp")
+    if indice < 0 or indice >= len(frame):
+        abort(404)
+    risposta = send_file(frame[indice], mimetype="image/webp")
+    risposta.headers["Cache-Control"] = "public, max-age=86400"
+    return risposta
 
 
 @app.route("/fulmini/dati/<int:indice>")

@@ -204,6 +204,22 @@
         <button type="button" id="radarAvanti">▶</button>
       </div>
 
+      <div id="controlliSatellite" class="controlli-satellite" hidden>
+        <label>
+          <input
+            type="radio"
+            name="prodottoSatellite"
+            value="geocolour"
+            checked
+          />
+          Geocolour
+        </label>
+        <label>
+          <input type="radio" name="prodottoSatellite" value="sandwich" />
+          Sandwich
+        </label>
+      </div>
+
       <div id="colorbarContenitore" class="colorbar-contenitore">
         <img
           id="colorbarCampo0"
@@ -551,6 +567,19 @@
       const radarIndietro = document.getElementById("radarIndietro");
       const radarAvanti = document.getElementById("radarAvanti");
       const radarEtichetta = document.getElementById("radarEtichetta");
+      const controlliSatellite = document.getElementById("controlliSatellite");
+      document
+        .querySelectorAll('input[name="prodottoSatellite"]')
+        .forEach((radio) =>
+          radio.addEventListener("change", () => {
+            if (!radio.checked) return;
+            prodottoSatellite = radio.value;
+            // Ricarico la lista del nuovo prodotto solo se il satellite e'
+            // gia' attivo (altrimenti non c'e' nulla da riaggiornare)
+            if (campiAttivi.includes("satellite"))
+              accendiCampoTemporale("satellite");
+          }),
+        );
       // Fino a 2 colorbar mostrabili insieme (una per ciascun campo attivo
       // che ne ha una, radar/riflettivita; fulmini non ne ha)
       const colorbarEl = [
@@ -589,7 +618,13 @@
             "{{ url_for('static', filename='icone/colorbar_radar_vmi.png') }}",
         },
         fulmini: { tipo: "punti", etichetta: "Fulmini" },
+        satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
+
+      // Prodotto satellite attualmente scelto (geocolour|sandwich): non
+      // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
+      // ritrova l'ultima scelta fatta.
+      let prodottoSatellite = "geocolour";
 
       // Icona dei pallini fulmine (CAMPO di tipo "punti")
       const iconaFulmine = L.icon({
@@ -707,7 +742,14 @@
         if (voce) return voce;
 
         const descr = DESCRITTORI_CAMPO[campo];
-        if (descr.tipo === "immagine") {
+        if (campo === "satellite") {
+          voce = new Image();
+          voce.src =
+            "/satellite/immagine/" +
+            indice +
+            ".webp?prodotto=" +
+            encodeURIComponent(prodottoSatellite);
+        } else if (descr.tipo === "immagine") {
           voce = new Image();
           voce.src =
             "/immagine/" + indice + ".png?campo=" + encodeURIComponent(campo);
@@ -745,7 +787,7 @@
             if (mioToken !== richiestaCampo[campo]) return;
             if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
             livelliCampo[campo] = L.imageOverlay(frame.src, lista.bounds, {
-              opacity: 0.7,
+              opacity: campo === "satellite" ? 0.85 : 0.75,
               interactive: false,
               // Idee per interazioni:
               // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
@@ -852,6 +894,7 @@
         costruisciListaIstanti();
         const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
         controlliRadar.hidden = !temporaliAttivi;
+        controlliSatellite.hidden = !campiAttivi.includes("satellite");
         if (!temporaliAttivi) return;
 
         if (listaIstanti.length > 0) {
@@ -888,6 +931,11 @@
       });
 
       function urlListaCampo(campo) {
+        if (campo === "satellite") {
+          return (
+            "/satellite/lista?prodotto=" + encodeURIComponent(prodottoSatellite)
+          );
+        }
         return DESCRITTORI_CAMPO[campo].tipo === "immagine"
           ? "/radar/lista?campo=" + encodeURIComponent(campo)
           : "/fulmini/lista";
