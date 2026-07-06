@@ -4,7 +4,23 @@ README.txt
 :Email: daniele@skaftafell
 :Date: 2026-05-08 08:53
 
-########### parte generazione immagini
+########### TODO
+Risolvi problema IQR della temperatura.
+Aggiungi nuove stazioni previste.
+Aggiungi osservati di umidità e pioggia per le nuove RF.
+Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
+Sposta la generazione di dati 2D sulla meteo-dev e synca sul computer.
+Gestione osservati nei plot 1D -> Run ogni ora.
+Logo meteobricchi.
+Font Google indipendente dal browser o computer.
+Aggiungi zona limite al radar ai png di VMI.
+Aggiungi frecce direzione del vento.
+Aggiungi campi Hindex e Wind Chill (vedi mail di Davide).
+Salva in webp invece che png.
+Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
+Se seleziono un campo, si chiudono tutte le schede stazioni aperte.
+
+###########
 
 Avviare flask in background:
 nohup flask run --host=0.0.0.0 --port=5009 > log_web.log 2>&1 &
