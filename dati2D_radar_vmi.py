@@ -19,8 +19,8 @@ dataset = "italian-radar-dpc-vmi.zarr"
 dataset_url = f"https://{username}:{access_key}@api.arcodatahub.com/S3/{dataset}"
 ds_tot = xr.open_dataset(dataset_url, engine="zarr")
 
-# os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
-os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
+os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
+# os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
@@ -43,9 +43,8 @@ sovrascrivi = True
 
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
-# lista_tempi = [adesso_0_UTC]
-# lista_tempi = pd.date_range('2026-06-28 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
-lista_tempi = pd.date_range('2026-07-03 16:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+lista_tempi = [adesso_0_UTC]
+# lista_tempi = pd.date_range('2026-07-03 16:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
@@ -59,10 +58,7 @@ for adesso_0_UTC in lista_tempi:
     try:
         cartella_file = f"{cartella_destinazione}/{tempo_buono.strftime(format='%Y/%m/%d')}"
     except AttributeError:
-        try:
-            exit()
-        except NameError:
-            break
+        break
         
     os.makedirs(cartella_file, exist_ok=True)
     nome_file_png = f"radar_vmi_{tempo_buono.strftime(format='%Y-%m-%d_%H%M')}.png"
@@ -70,10 +66,7 @@ for adesso_0_UTC in lista_tempi:
     
     if os.path.exists(f'{cartella_file}/{nome_file_png}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
-        try:
-            exit()
-        except NameError:
-            continue
+        continue
     
     da = ds.sel(time=tempo_buono)
     

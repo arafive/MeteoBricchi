@@ -76,10 +76,7 @@ for adesso_0_UTC in lista_tempi:
     
     if os.path.exists(f'{cartella_file_csv}/{nome_file_csv}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
-        try:
-            exit()
-        except NameError:
-            continue
+        continue
 
     df_query = f_query(area, adesso_1_UTC, adesso_0_UTC)
             

@@ -39,6 +39,7 @@ def f_prendi_ultimo_istante_buono(ds):
         
 # %%
 area = (4.5, 20.4, 35.0, 47.8) # italia
+sovrascrivi = True
 
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
@@ -57,21 +58,15 @@ for adesso_0_UTC in lista_tempi:
     try:
         cartella_file = f"{cartella_destinazione}/{tempo_buono.strftime(format='%Y/%m/%d')}"
     except AttributeError:
-        try:
-            exit()
-        except NameError:
-            break
+        break
         
     os.makedirs(cartella_file, exist_ok=True)
     nome_file_png = f"radar_sri_{tempo_buono.strftime(format='%Y-%m-%d_%H%M')}.png"
     print(f'{nome_file_png=}')
 
-    if os.path.exists(f'{cartella_file}/{nome_file_png}'):
+    if os.path.exists(f'{cartella_file}/{nome_file_png}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
-        try:
-            exit()
-        except NameError:
-            continue
+        continue
     
     da = ds.sel(time=tempo_buono)
     
@@ -416,3 +411,4 @@ qui sotto comunque.
 
 # plt.show()
 # plt.close()
+
