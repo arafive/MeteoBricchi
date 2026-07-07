@@ -47,6 +47,17 @@ def trova_frame(cartella, estensione):
     return sorted(glob.glob(os.path.join(cartella, "*", "*", "*", f"*.{estensione}")))
 
 
+def trova_per_nome(cartella, nome, estensione):
+    """Cerca <nome>.<estensione> dentro <cartella>/AAAA/MM/GG/ senza
+    assumere che le componenti di data nel nome corrispondano esattamente
+    alla sottocartella in cui il file si trova davvero (puo' non essere
+    cosi' per frame generati/salvati con un piccolo sfasamento rispetto
+    al proprio nome, es. a cavallo di mezzanotte)."""
+    corrispondenze = glob.glob(
+        os.path.join(cartella, "*", "*", "*", f"{nome}.{estensione}"))
+    return corrispondenze[0] if corrispondenze else None
+
+
 def leggi_stazioni(serie):
     """Legge il CSV delle coordinate per una SERIE 1D (coordinate/<serie>/*.csv)
     e restituisce la lista delle stazioni. Lista vuota se il file non c'è."""
@@ -187,12 +198,10 @@ def radar_immagine(nome):
     cartella = CARTELLE_RADAR.get(campo)
     if cartella is None:
         abort(404)
-    corrisp = NOME_FRAME_RE.match(nome)
-    if not corrisp:
+    if not NOME_FRAME_RE.match(nome):
         abort(404)
-    anno, mese, giorno = corrisp.group(1), corrisp.group(2), corrisp.group(3)
-    percorso = os.path.join(cartella, anno, mese, giorno, nome + ".png")
-    if not os.path.exists(percorso):
+    percorso = trova_per_nome(cartella, nome, "png")
+    if percorso is None:
         abort(404)
     risposta = send_file(percorso, mimetype="image/png")
     risposta.headers["Cache-Control"] = "public, max-age=86400"
@@ -233,30 +242,40 @@ def satellite_lista():
     })
 
 
-@app.route("/satellite/immagine/<int:indice>.webp")
-def satellite_immagine(indice):
-    """Stesso parametro ?prodotto= di /satellite/lista: l'indice ha senso
-    solo riferito alla stessa cartella con cui e' stata costruita la lista."""
+@app.route("/satellite/immagine/<nome>.webp")
+def satellite_immagine(nome):
+    """Stesso parametro ?prodotto= di /satellite/lista. Identificato per
+    NOME, non per indice: stesso motivo della route /immagine/<nome>.png,
+    l'indice puo' spostarsi se nel frattempo un frame viene aggiunto o
+    rimosso (retention)."""
     prodotto = request.args.get("prodotto", "")
     cartella = CARTELLE_SATELLITE.get(prodotto)
     if cartella is None:
         abort(404)
-    frame = trova_frame(cartella, "webp")
-    if indice < 0 or indice >= len(frame):
+    if not NOME_FRAME_RE.match(nome):
         abort(404)
-    risposta = send_file(frame[indice], mimetype="image/webp")
+    percorso = trova_per_nome(cartella, nome, "webp")
+    if percorso is None:
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/webp")
     risposta.headers["Cache-Control"] = "public, max-age=86400"
     return risposta
 
 
-@app.route("/fulmini/dati/<int:indice>")
-def fulmini_dati(indice):
-    """Punti (lon, lat) di un frame fulmini. Nel CSV lon/lat sono interi
-    moltiplicati per 10000: li riporto in gradi dividendo per 10000."""
-    frame = trova_frame(CARTELLA_FULMINI, "csv")
-    if indice < 0 or indice >= len(frame):
+@app.route("/fulmini/dati/<nome>")
+def fulmini_dati(nome):
+    """Punti (lon, lat) di un frame fulmini, identificato per NOME (non per
+    indice): stesso motivo della route /immagine/<nome>.png, un indice ha
+    senso solo riferito alla stessa lista con cui e' stato calcolato e puo'
+    spostarsi se nel frattempo un frame viene aggiunto o rimosso (retention).
+    Nel CSV lon/lat sono interi moltiplicati per 10000: li riporto in gradi
+    dividendo per 10000."""
+    if not NOME_FRAME_RE.match(nome):
         abort(404)
-    df = pd.read_csv(frame[indice], usecols=["LON", "LAT"]) / FATTORE_FULMINI
+    percorso = trova_per_nome(CARTELLA_FULMINI, nome, "csv")
+    if percorso is None:
+        abort(404)
+    df = pd.read_csv(percorso, usecols=["LON", "LAT"]) / FATTORE_FULMINI
     punti = df.rename(columns={"LON": "lon", "LAT": "lat"}).to_dict(
         orient="records")
     return jsonify(punti)

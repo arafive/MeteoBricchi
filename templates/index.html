@@ -288,6 +288,7 @@
       const mappa = L.map("mappa", {
         zoomControl: false,
         keyboardPanDelta: 0, // le frecce non spostano la mappa (le usa il radar)
+        wheelPxPerZoomLevel: 120, // default 60: più alto = zoom più "morbido" per scatto di rotella
       }).setView([44.2, 8.75], 9);
 
       const JAWG_TOKEN =
@@ -762,10 +763,11 @@
 
         const descr = DESCRITTORI_CAMPO[campo];
         if (campo === "satellite") {
+          const nomeFrame = listaFrameCampo[campo].nomi[indice];
           voce = new Image();
           voce.src =
             "/satellite/immagine/" +
-            indice +
+            encodeURIComponent(nomeFrame) +
             ".webp?prodotto=" +
             encodeURIComponent(prodottoSatellite);
         } else if (descr.tipo === "immagine") {
@@ -779,7 +781,12 @@
             ".png?campo=" +
             encodeURIComponent(campo);
         } else {
-          voce = fetch("/fulmini/dati/" + indice).then((r) => r.json());
+          // Per NOME, non per indice: stesso motivo delle immagini radar,
+          // vedi la route Flask /fulmini/dati/<nome>.
+          const nomeFrame = listaFrameCampo[campo].nomi[indice];
+          voce = fetch("/fulmini/dati/" + encodeURIComponent(nomeFrame)).then(
+            (r) => r.json(),
+          );
         }
         cache.set(indice, voce);
         return voce;

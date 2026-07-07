@@ -13,7 +13,6 @@ Gestione osservati nei plot 1D -> Run ogni ora.
 Logo meteobricchi.
 Aggiungi zona limite al radar ai png di VMI.
 Aggiungi frecce direzione del vento.
-Aggiungi campi Hindex e Wind Chill (vedi mail di Davide).
 Salva in webp invece che png.
 Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
 Se seleziono un campo, si chiudono tutte le schede stazioni aperte.
