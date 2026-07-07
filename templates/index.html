@@ -625,6 +625,18 @@
             "{{ url_for('static', filename='icone/colorbar_radar_vmi.png') }}",
         },
         fulmini: { tipo: "punti", etichetta: "Fulmini" },
+        caldo: {
+          tipo: "immagine",
+          etichetta: "Heat Index",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_heatindex2D_obs.png') }}",
+        },
+        freddo: {
+          tipo: "immagine",
+          etichetta: "Wind Chill",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
+        },
         satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
 
@@ -757,9 +769,15 @@
             ".webp?prodotto=" +
             encodeURIComponent(prodottoSatellite);
         } else if (descr.tipo === "immagine") {
+          // Per NOME, non per indice: vedi commento nella route Flask
+          // /immagine/<nome>.png sul perche'.
+          const nomeFrame = listaFrameCampo[campo].nomi[indice];
           voce = new Image();
           voce.src =
-            "/immagine/" + indice + ".png?campo=" + encodeURIComponent(campo);
+            "/immagine/" +
+            encodeURIComponent(nomeFrame) +
+            ".png?campo=" +
+            encodeURIComponent(campo);
         } else {
           voce = fetch("/fulmini/dati/" + indice).then((r) => r.json());
         }

@@ -17,6 +17,8 @@ CARTELLA_CAMPI = os.path.join(os.path.dirname(__file__), "dati2D")
 CARTELLE_RADAR = {
     "radar": os.path.join(CARTELLA_CAMPI, "radar_sri"),
     "riflettivita": os.path.join(CARTELLA_CAMPI, "radar_vmi"),
+    "caldo": os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"),
+    "freddo": os.path.join(CARTELLA_CAMPI, "windchill2D_obs"),
 }
 CARTELLA_FULMINI = os.path.join(CARTELLA_CAMPI, "fulmini")
 # Prodotti satellite: stessa idea di CARTELLE_RADAR, ma frame in .webp e
@@ -169,18 +171,30 @@ def radar_lista():
     })
 
 
-@app.route("/immagine/<int:indice>.png")
-def radar_immagine(indice):
-    """Stesso parametro ?campo= di /radar/lista: l'indice ha senso solo
-    riferito alla stessa cartella con cui e' stata costruita la lista."""
+NOME_FRAME_RE = re.compile(r"^[A-Za-z0-9_]+_(\d{4})-(\d{2})-(\d{2})_(\d{4})$")
+
+
+@app.route("/immagine/<nome>.png")
+def radar_immagine(nome):
+    """Serve il frame identificato per NOME (es. "radar_vmi_2026-07-03_1200"),
+    non per indice numerico: un indice ha senso solo se riferito alla stessa
+    lista con cui e' stato calcolato, ma /radar/lista e questa route
+    interrogano la cartella in momenti diversi - se nel frattempo arriva un
+    nuovo frame, lo stesso indice puo' finire per indicare un file diverso.
+    Il nome invece identifica sempre lo stesso file, univocamente.
+    """
     campo = request.args.get("campo", "")
     cartella = CARTELLE_RADAR.get(campo)
     if cartella is None:
         abort(404)
-    frame = trova_frame(cartella, "png")
-    if indice < 0 or indice >= len(frame):
+    corrisp = NOME_FRAME_RE.match(nome)
+    if not corrisp:
         abort(404)
-    risposta = send_file(frame[indice], mimetype="image/png")
+    anno, mese, giorno = corrisp.group(1), corrisp.group(2), corrisp.group(3)
+    percorso = os.path.join(cartella, anno, mese, giorno, nome + ".png")
+    if not os.path.exists(percorso):
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/png")
     risposta.headers["Cache-Control"] = "public, max-age=86400"
     return risposta
 
