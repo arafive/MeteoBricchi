@@ -25,12 +25,20 @@ body {
   color: #e4e7eb;
   padding: 16px;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
   transition:
     width 0.25s ease,
     min-width 0.25s ease,
     padding 0.25s ease;
+}
+
+#menu .menu-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 #menu.collassato {
