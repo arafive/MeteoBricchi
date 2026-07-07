@@ -9,10 +9,8 @@ Risolvi problema IQR della temperatura.
 Aggiungi nuove stazioni previste.
 Aggiungi osservati di umidità e pioggia per le nuove RF.
 Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
-Sposta la generazione di dati 2D sulla meteo-dev e synca sul computer.
 Gestione osservati nei plot 1D -> Run ogni ora.
 Logo meteobricchi.
-Font Google indipendente dal browser o computer.
 Aggiungi zona limite al radar ai png di VMI.
 Aggiungi frecce direzione del vento.
 Aggiungi campi Hindex e Wind Chill (vedi mail di Davide).
