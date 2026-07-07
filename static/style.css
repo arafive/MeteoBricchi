@@ -50,10 +50,9 @@ body {
 }
 
 #menu .firma {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 0 0 auto;
+  text-align: center;
+  padding-top: 10px;
   font-size: 16px;
   color: #7b8794;
   font-family: "Nanum Pen Script", Arial, sans-serif;

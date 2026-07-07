@@ -40,161 +40,167 @@
         ‹
       </button>
       <aside id="menu">
-        <h1>
-          MeteoBricchi
-          <img
-            src="{{ url_for('static', filename='icone/ape.png') }}"
-            class="emoji-icon-gif"
-            alt=""
-          />
-        </h1>
+        <div class="menu-scroll">
+          <h1>
+            MeteoBricchi
+            <img
+              src="{{ url_for('static', filename='icone/ape.png') }}"
+              class="emoji-icon-gif"
+              alt=""
+            />
+          </h1>
 
-        <div class="gruppo">
-          <label for="data">Data</label>
-          <input type="datetime-local" id="data" step="300" />
-        </div>
-
-        <!-- SERIE = dati 1D (serie temporali): stazioni puntuali -->
-        <div class="gruppo">
-          <label>Stazioni</label>
-          <div class="bottoni-serie">
-            <button type="button" class="bottone-serie" data-serie="vento">
-              <img
-                src="{{ url_for('static', filename='icone/vento.svg') }}"
-                alt=""
-              />
-              <span>Vento</span>
-            </button>
-            <button
-              type="button"
-              class="bottone-serie"
-              data-serie="temperatura"
-            >
-              <img
-                src="{{ url_for('static', filename='icone/temperatura.svg') }}"
-                alt=""
-              />
-              <span>Temperatura</span>
-            </button>
-            <button type="button" class="bottone-serie" data-serie="umidita">
-              <img
-                src="{{ url_for('static', filename='icone/umidita.svg') }}"
-                alt=""
-              />
-              <span>Umidità</span>
-            </button>
-            <button type="button" class="bottone-serie" data-serie="pioggia">
-              <img
-                src="{{ url_for('static', filename='icone/pioggia.svg') }}"
-                alt=""
-              />
-              <span>Pioggia</span>
-            </button>
+          <div class="gruppo">
+            <label for="data">Data</label>
+            <input type="datetime-local" id="data" step="300" />
           </div>
-        </div>
 
-        <!-- CAMPO = dati 2D (griglia lat/lon): overlay - per ora solo il bottone -->
-        <div class="gruppo">
-          <label>Campi</label>
-          <div class="bottoni-campo">
-            <button type="button" class="bottone-campo" data-campo="radar">
-              <img
-                src="{{ url_for('static', filename='icone/radar_3.svg') }}"
-                alt=""
-              />
-              <span>Radar</span>
-            </button>
-            <button
-              type="button"
-              class="bottone-campo"
-              data-campo="riflettivita"
-            >
-              <img
-                src="{{ url_for('static', filename='icone/riflettivita.svg') }}"
-                alt=""
-              />
-              <span>Riflettività</span>
-            </button>
-            <button type="button" class="bottone-campo" data-campo="fulmini">
-              <img
-                src="{{ url_for('static', filename='icone/fulmini.svg') }}"
-                alt=""
-              />
-              <span>Fulmini</span>
-            </button>
-            <button type="button" class="bottone-campo" data-campo="satellite">
-              <img
-                src="{{ url_for('static', filename='icone/satellite_1.svg') }}"
-                alt=""
-              />
-              <span>Satellite</span>
-            </button>
-            <button type="button" class="bottone-campo" data-campo="irene">
-              <img
-                src="{{ url_for('static', filename='icone/irene.svg') }}"
-                alt=""
-              />
-              <span>IRENE</span>
-            </button>
-            <button type="button" class="bottone-campo" data-campo="caldo">
-              <img
-                src="{{ url_for('static', filename='icone/caldo.svg') }}"
-                alt=""
-              />
-              <span>Heat Index</span>
-            </button>
-            <button type="button" class="bottone-campo" data-campo="freddo">
-              <img
-                src="{{ url_for('static', filename='icone/freddo.svg') }}"
-                alt=""
-              />
-              <span>Wind Chill</span>
-            </button>
+          <!-- SERIE = dati 1D (serie temporali): stazioni puntuali -->
+          <div class="gruppo">
+            <label>Stazioni</label>
+            <div class="bottoni-serie">
+              <button type="button" class="bottone-serie" data-serie="vento">
+                <img
+                  src="{{ url_for('static', filename='icone/vento.svg') }}"
+                  alt=""
+                />
+                <span>Vento</span>
+              </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="temperatura"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/temperatura.svg') }}"
+                  alt=""
+                />
+                <span>Temperatura</span>
+              </button>
+              <button type="button" class="bottone-serie" data-serie="umidita">
+                <img
+                  src="{{ url_for('static', filename='icone/umidita.svg') }}"
+                  alt=""
+                />
+                <span>Umidità</span>
+              </button>
+              <button type="button" class="bottone-serie" data-serie="pioggia">
+                <img
+                  src="{{ url_for('static', filename='icone/pioggia.svg') }}"
+                  alt=""
+                />
+                <span>Pioggia</span>
+              </button>
+            </div>
           </div>
+
+          <!-- CAMPO = dati 2D (griglia lat/lon): overlay - per ora solo il bottone -->
+          <div class="gruppo">
+            <label>Campi</label>
+            <div class="bottoni-campo">
+              <button type="button" class="bottone-campo" data-campo="radar">
+                <img
+                  src="{{ url_for('static', filename='icone/radar_3.svg') }}"
+                  alt=""
+                />
+                <span>Radar</span>
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="riflettivita"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/riflettivita.svg') }}"
+                  alt=""
+                />
+                <span>Riflettività</span>
+              </button>
+              <button type="button" class="bottone-campo" data-campo="fulmini">
+                <img
+                  src="{{ url_for('static', filename='icone/fulmini.svg') }}"
+                  alt=""
+                />
+                <span>Fulmini</span>
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="satellite"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/satellite_1.svg') }}"
+                  alt=""
+                />
+                <span>Satellite</span>
+              </button>
+              <button type="button" class="bottone-campo" data-campo="irene">
+                <img
+                  src="{{ url_for('static', filename='icone/irene.svg') }}"
+                  alt=""
+                />
+                <span>IRENE</span>
+              </button>
+              <button type="button" class="bottone-campo" data-campo="caldo">
+                <img
+                  src="{{ url_for('static', filename='icone/caldo.svg') }}"
+                  alt=""
+                />
+                <span>Heat Index</span>
+              </button>
+              <button type="button" class="bottone-campo" data-campo="freddo">
+                <img
+                  src="{{ url_for('static', filename='icone/freddo.svg') }}"
+                  alt=""
+                />
+                <span>Wind Chill</span>
+              </button>
+            </div>
+          </div>
+
+          <hr class="separatore-menu" />
+
+          <button
+            type="button"
+            class="bottone-azione"
+            id="bottoneAnimazione"
+            disabled
+          >
+            <img
+              src="{{ url_for('static', filename='icone/animazione.svg') }}"
+              alt=""
+            />
+            <span>Animazione</span>
+            <img
+              id="bottoneAnimazioneIcona"
+              src="{{ url_for('static', filename='icone/play.svg') }}"
+              alt=""
+              class="icona-a-destra"
+            />
+          </button>
+
+          <button type="button" class="bottone-azione" id="bottoneColorbar">
+            <img
+              src="{{ url_for('static', filename='icone/colorbar.svg') }}"
+              alt=""
+            />
+            <span>Colorbar</span>
+            <img
+              id="bottoneColorbarIcona"
+              src="{{ url_for('static', filename='icone/off.svg') }}"
+              alt=""
+              class="icona-a-destra"
+            />
+          </button>
+
+          <button type="button" class="bottone-azione" id="bottoneLayer">
+            <img
+              src="{{ url_for('static', filename='icone/layer.svg') }}"
+              alt=""
+            />
+            <span>Layer</span>
+          </button>
         </div>
-
-        <hr class="separatore-menu" />
-
-        <button
-          type="button"
-          class="bottone-azione"
-          id="bottoneAnimazione"
-          disabled
-        >
-          <img
-            src="{{ url_for('static', filename='icone/animazione.svg') }}"
-            alt=""
-          />
-          <span>Animazione</span>
-          <img
-            id="bottoneAnimazioneIcona"
-            src="{{ url_for('static', filename='icone/play.svg') }}"
-            alt=""
-            class="icona-a-destra"
-          />
-        </button>
-
-        <button type="button" class="bottone-azione" id="bottoneColorbar">
-          <img
-            src="{{ url_for('static', filename='icone/colorbar.svg') }}"
-            alt=""
-          />
-          <span>Colorbar</span>
-          <img
-            id="bottoneColorbarIcona"
-            src="{{ url_for('static', filename='icone/off.svg') }}"
-            alt=""
-            class="icona-a-destra"
-          />
-        </button>
-
-        <button type="button" class="bottone-azione" id="bottoneLayer">
-          <img
-            src="{{ url_for('static', filename='icone/layer.svg') }}"
-            alt=""
-          />
-          <span>Layer</span>
-        </button>
         <div class="firma">
           Arts by Daniele
           <!-- Arts by DC&nbsp;&nbsp;<img src="{{ url_for('static', filename='icone/ape.gif') }}" -->
@@ -595,7 +601,7 @@
         document.getElementById("colorbarCampo1"),
       ];
       let colorbarVisibile = false; // toggle del bottone "Colorbar" nel menu'
-      const PRECARICA_RADAR = 5; // quanti frame precedenti precaricare
+      const PRECARICA_RADAR = 2; // quanti frame precaricare, prima e dopo quello richiesto
 
       // Stato per CAMPO: fino a 2 campi temporali possono essere attivi
       // insieme (vedi campiAttivi piu' sotto). Per ciascuno teniamo la sua
@@ -807,7 +813,10 @@
         if (indice < 0) return;
 
         const inizio = Math.max(0, indice - PRECARICA_RADAR);
-        for (let i = inizio; i < indice; i++) precaricaFrameCampo(campo, i);
+        const fine = Math.min(lista.totale - 1, indice + PRECARICA_RADAR);
+        for (let i = inizio; i <= fine; i++) {
+          if (i !== indice) precaricaFrameCampo(campo, i); // quello richiesto lo carica gia' ottieniFrameCampo poco sotto
+        }
 
         const mioToken = ++richiestaCampo[campo];
         const descr = DESCRITTORI_CAMPO[campo];
