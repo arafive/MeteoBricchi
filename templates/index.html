@@ -273,6 +273,10 @@
             <label>Sentieri</label>
             <div class="scelte-mappa" id="scelteSentieriLayer"></div>
           </div>
+          <div class="gruppo-impostazioni">
+            <label>Shapefile</label>
+            <div class="scelte-mappa" id="scelteShapefileLayer"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -551,6 +555,54 @@
 
       impostaMappa("04"); // di default, quella gia' attiva finora
       // nessun sentiero attivo di default: non chiamo impostaSentiero()
+
+      // --- Shapefile: confini geografici statici, sovrapponibili insieme
+      // (non esclusivi come mappa/sentieri: se ne possono attivare piu' d'uno).
+      const DEFINIZIONI_SHAPEFILE = [
+        { id: "regioni", nome: "Regioni", colore: "#2f6fed" },
+        { id: "comprensori", nome: "Comprensori", colore: "#9467bd" },
+        { id: "bacini", nome: "Bacini", colore: "#17becf" },
+        { id: "comuni", nome: "Comuni", colore: "#d62728" },
+        { id: "aree", nome: "Aree", colore: "#2ca02c" },
+      ];
+
+      const livelliShapefile = {}; // id -> layer Leaflet, presente solo se attivo
+      const cacheShapefile = new Map(); // id -> Promise<GeoJSON>, una sola richiesta per id
+
+      function ottieniShapefile(id) {
+        if (!cacheShapefile.has(id)) {
+          cacheShapefile.set(
+            id,
+            fetch("/shapefile/" + encodeURIComponent(id)).then((r) => r.json()),
+          );
+        }
+        return cacheShapefile.get(id);
+      }
+
+      function impostaShapefile(id, attivo) {
+        if (!attivo) {
+          if (livelliShapefile[id]) {
+            mappa.removeLayer(livelliShapefile[id]);
+            delete livelliShapefile[id];
+          }
+          return;
+        }
+        const def = DEFINIZIONI_SHAPEFILE.find((s) => s.id === id);
+        ottieniShapefile(id).then((geojson) => {
+          // Se nel frattempo e' stato deselezionato, non disegnare
+          const casella = document.querySelector(
+            '#scelteShapefileLayer input[data-id="' + id + '"]',
+          );
+          if (!casella || !casella.checked) return;
+          livelliShapefile[id] = L.geoJSON(geojson, {
+            style: {
+              color: (def && def.colore) || "#2f6fed",
+              weight: 1.5,
+              fillOpacity: 0.04,
+            },
+          }).addTo(mappa);
+        });
+      }
 
       // Sentieri
       // L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
@@ -1414,6 +1466,30 @@
         });
       }
 
+      // Come registraScelteEsclusive, ma non esclusivo: ogni spuntina e'
+      // indipendente dalle altre (per lo Shapefile ha senso vederne piu'
+      // di uno insieme, es. Regioni + Comuni).
+      function registraScelteMultiple(contenitore, definizioni, alCambio) {
+        definizioni.forEach((def) => {
+          const etichetta = document.createElement("label");
+          etichetta.className = "scelta-mappa";
+
+          const casella = document.createElement("input");
+          casella.type = "checkbox";
+          casella.dataset.id = def.id;
+
+          etichetta.appendChild(casella);
+          etichetta.appendChild(document.createTextNode(def.nome));
+          contenitore.appendChild(etichetta);
+        });
+
+        contenitore.addEventListener("change", (e) => {
+          const casella = e.target;
+          if (casella.type !== "checkbox") return;
+          alCambio(casella.dataset.id, casella.checked);
+        });
+      }
+
       registraScelteEsclusive(
         "mappa",
         document.getElementById("scelteMappaLayer"),
@@ -1428,6 +1504,12 @@
         DEFINIZIONI_SENTIERI,
         null, // nessun sentiero attivo di default
         impostaSentiero,
+      );
+
+      registraScelteMultiple(
+        document.getElementById("scelteShapefileLayer"),
+        DEFINIZIONI_SHAPEFILE,
+        impostaShapefile,
       );
 
       // --- Controlli del menù ---

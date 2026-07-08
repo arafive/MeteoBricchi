@@ -404,7 +404,7 @@ body {
 }
 
 #modaleLayer .modale-finestra {
-  width: min(90vw, 480px);
+  width: min(90vw, 620px);
 }
 
 #modaleLayer .titolo-popup {
@@ -421,7 +421,7 @@ body {
 
 .colonne-layer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 24px;
   align-items: start;
 }

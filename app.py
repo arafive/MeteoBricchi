@@ -6,6 +6,8 @@ import datetime
 
 import numpy as np
 import pandas as pd
+import shapefile
+from pyproj import Transformer
 from flask import Flask, render_template, jsonify, abort, request, send_file
 
 app = Flask(__name__)
@@ -27,6 +29,12 @@ CARTELLE_SATELLITE = {
     "geocolour": os.path.join(CARTELLA_CAMPI, "geocolour"),
     "sandwich": os.path.join(CARTELLA_CAMPI, "sandwich"),
 }
+# Confini geografici statici (shapefile), overlay opzionali sulla mappa.
+# Ogni sottocartella contiene UN solo .shp (nome variabile: si trova per
+# estensione) + i sidecar .dbf/.shx/.prj/.cpg.
+CARTELLA_SHAPEFILE = os.path.join(os.path.dirname(__file__), "shapefile")
+SHAPEFILE_VALIDI = {"aree", "bacini", "comprensori", "comuni", "regioni"}
+_cache_shapefile = {}  # nome -> GeoJSON gia' convertito (i file non cambiano a runtime)
 
 # Colonne del CSV fulmini gia' moltiplicate per 10000 (interi): vanno
 # riportate in unita' reali dividendo per 10000 prima dell'uso.
@@ -56,6 +64,97 @@ def trova_per_nome(cartella, nome, estensione):
     corrispondenze = glob.glob(
         os.path.join(cartella, "*", "*", "*", f"{nome}.{estensione}"))
     return corrispondenze[0] if corrispondenze else None
+
+
+def trova_shp(cartella):
+    """C'e' uno e un solo .shp per sottocartella (il nome puo' variare): lo
+    trovo per estensione, senza doverlo conoscere in anticipo."""
+    trovati = glob.glob(os.path.join(cartella, "*.shp"))
+    return trovati[0] if trovati else None
+
+
+def _riproietta_coordinate(coord, trasforma):
+    """Riproietta ricorsivamente le coordinate di una geometria GeoJSON
+    (Point/LineString/Polygon/Multi*): scende nelle liste annidate finche'
+    non trova una coppia (x, y) da trasformare."""
+    if isinstance(coord[0], (int, float)):
+        x, y = trasforma(coord[0], coord[1])
+        return [x, y]
+    return [_riproietta_coordinate(c, trasforma) for c in coord]
+
+
+def _valore_json_sicuro(v):
+    """I campi degli attributi shapefile possono contenere date: le
+    trasformo in stringa ISO, altrimenti jsonify si romperebbe."""
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return v.isoformat()
+    return v
+
+
+def leggi_shapefile_geojson(nome):
+    """Legge shapefile/<nome>/*.shp e lo converte in GeoJSON in EPSG:4326
+    (WGS84), pronto per L.geoJSON in Leaflet. La proiezione sorgente viene
+    letta dal sidecar .prj; l'encoding dei campi testo dal sidecar .cpg.
+    Tenuto in cache: i file non cambiano mentre il server e' in esecuzione.
+    """
+    if nome in _cache_shapefile:
+        return _cache_shapefile[nome]
+
+    percorso_shp = trova_shp(os.path.join(CARTELLA_SHAPEFILE, nome))
+    if percorso_shp is None:
+        return None
+    base = os.path.splitext(percorso_shp)[0]
+
+    percorso_prj = base + ".prj"
+    if os.path.exists(percorso_prj):
+        with open(percorso_prj) as f:
+            trasforma = Transformer.from_crs(
+                f.read(), "EPSG:4326", always_xy=True).transform
+    else:
+        def trasforma(x, y):
+            return x, y
+
+    percorso_cpg = base + ".cpg"
+    codifica = "utf-8"
+    if os.path.exists(percorso_cpg):
+        with open(percorso_cpg) as f:
+            codifica = f.read().strip() or "utf-8"
+
+    try:
+        feature = _costruisci_feature_shapefile(percorso_shp, codifica, trasforma)
+    except UnicodeDecodeError:
+        # Niente .cpg (o .cpg sbagliato) e non e' UTF-8: probabile shapefile
+        # "vecchio stile" (ArcGIS/MapInfo su Windows), quasi sempre
+        # Latin-1/CP1252. Latin-1 non solleva mai UnicodeDecodeError (mappa
+        # tutti i 256 valori di byte), quindi e' un ripiego sicuro.
+        feature = _costruisci_feature_shapefile(percorso_shp, "latin-1", trasforma)
+
+    geojson = {"type": "FeatureCollection", "features": feature}
+    _cache_shapefile[nome] = geojson
+    return geojson
+
+
+def _costruisci_feature_shapefile(percorso_shp, codifica, trasforma):
+    """Legge shape + attributi con una data codifica e li converte in una
+    lista di Feature GeoJSON. Solleva UnicodeDecodeError se la codifica e'
+    sbagliata (i campi testo del .dbf non decodificano)."""
+    with shapefile.Reader(percorso_shp, encoding=codifica) as lettore:
+        campi = [c[0] for c in lettore.fields[1:]]  # [0] = DeletionFlag
+        feature = []
+        for forma in lettore.shapeRecords():
+            geom = forma.shape.__geo_interface__
+            if geom.get("coordinates"):
+                geom = dict(geom, coordinates=_riproietta_coordinate(
+                    geom["coordinates"], trasforma))
+            feature.append({
+                "type": "Feature",
+                "geometry": geom,
+                "properties": {
+                    k: _valore_json_sicuro(v)
+                    for k, v in zip(campi, forma.record)
+                },
+            })
+        return feature
 
 
 def percorso_serie_stazione(serie, codice, d):
@@ -298,6 +397,17 @@ def fulmini_dati(nome):
     punti = df.rename(columns={"LON": "lon", "LAT": "lat"}).to_dict(
         orient="records")
     return jsonify(punti)
+
+
+@app.route("/shapefile/<nome>")
+def shapefile_geojson(nome):
+    """Shapefile convertito in GeoJSON (WGS84), per L.geoJSON su Leaflet."""
+    if nome not in SHAPEFILE_VALIDI:
+        abort(404)
+    geojson = leggi_shapefile_geojson(nome)
+    if geojson is None:
+        abort(404)
+    return jsonify(geojson)
 
 
 if __name__ == "__main__":
