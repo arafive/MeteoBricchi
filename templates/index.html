@@ -1086,14 +1086,24 @@
       let finestraAttiva = null; // codice dell'ultima finestra cliccata (per Esc)
       let cascataGrafici = 0; // sfalsa la posizione iniziale di finestre successive
 
+      // Verde se per la data scelta esiste un file da poter plottare, rosso altrimenti
+      const COLORE_DISPONIBILE = "#3FCF3F";
+      const COLORE_NON_DISPONIBILE = "#EF3A3C";
+
       // Costruisce un pallino; hover = tooltip informativo, click = grafico
       function costruisciMarker(s) {
         const quota = s.quota != null ? s.quota + " m" : "n/d";
+        const colore = s.disponibile
+          ? COLORE_DISPONIBILE
+          : COLORE_NON_DISPONIBILE;
 
         // Pallino visibile (solo estetico, non intercetta eventi)
         L.circleMarker(
           [s.lat, s.lon],
-          Object.assign({}, stilePallino, { interactive: false }),
+          Object.assign({}, stilePallino, {
+            fillColor: colore,
+            interactive: false,
+          }),
         ).addTo(gruppoStazioni);
 
         // Cerchio invisibile più grande: allarga la zona di hover/click
@@ -1122,9 +1132,17 @@
           .on("click", () => apriModale(s));
       }
 
-      // Scarica le stazioni della SERIE indicata e ridisegna i pallini sulla mappa
+      // Scarica le stazioni della SERIE indicata (per la data corrente, cosi'
+      // il backend puo' dire quali hanno un file disponibile) e ridisegna i
+      // pallini sulla mappa.
       function caricaStazioni(serie) {
-        fetch("/stazioni?serie=" + encodeURIComponent(serie))
+        const stato = statoMenu(); // { data, serie }
+        const url =
+          "/stazioni?serie=" +
+          encodeURIComponent(serie) +
+          "&data=" +
+          encodeURIComponent(stato.data.slice(0, 10)); // solo AAAA-MM-GG
+        fetch(url)
           .then((r) => (r.ok ? r.json() : []))
           .then((stazioni) => {
             gruppoStazioni.clearLayers();
@@ -1459,6 +1477,7 @@
             inputData.value ? new Date(inputData.value).getTime() : Date.now(),
           );
         }
+        if (serieAttiva) caricaStazioni(serieAttiva); // la disponibilita' dipende dalla data
         finestreAperte.forEach((_, codice) => disegnaGraficoFinestra(codice));
       }
 

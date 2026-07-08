@@ -36,7 +36,7 @@ FATTORE_FULMINI = 10000.0
 NODATA = -999
 
 # SERIE = dati 1D (serie temporali su stazioni puntuali): sottocartelle di dati1D/
-SERIE_VALIDE = {"vento", "temperatura"}
+SERIE_VALIDE = {"vento", "temperatura", "umidita", "pioggia"}
 # CAMPO = dati 2D (griglia lat/lon): sottocartelle di dati2D/ - per ora solo il bottone
 CAMPI_VALIDI = {"radar", "riflettivita", "fulmini"}
 
@@ -56,6 +56,16 @@ def trova_per_nome(cartella, nome, estensione):
     corrispondenze = glob.glob(
         os.path.join(cartella, "*", "*", "*", f"{nome}.{estensione}"))
     return corrispondenze[0] if corrispondenze else None
+
+
+def percorso_serie_stazione(serie, codice, d):
+    """Percorso del CSV di una SERIE 1D per una stazione e una data:
+    dati1D/<serie>/YYYY/mm/dd/<codice>/<codice>.csv"""
+    return os.path.join(
+        CARTELLA_SERIE, serie,
+        f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}",
+        codice, f"{codice}.csv",
+    )
 
 
 def leggi_stazioni(serie):
@@ -98,11 +108,24 @@ def index():
 
 @app.route("/stazioni")
 def stazioni():
-    """Lista delle stazioni (pallini) per una SERIE 1D. Vuota se non ci sono dati."""
+    """Lista delle stazioni (pallini) per una SERIE 1D, con l'indicazione
+    (campo "disponibile") se per la data richiesta esiste il file da poter
+    plottare per quella stazione. Senza ?data= valida, "disponibile" e'
+    sempre False. Vuota se non ci sono stazioni."""
     serie = request.args.get("serie", "")
     if serie not in SERIE_VALIDE:
         abort(404)
-    return jsonify(leggi_stazioni(serie))
+
+    try:
+        d = datetime.date.fromisoformat(request.args.get("data", ""))
+    except ValueError:
+        d = None
+
+    elenco = leggi_stazioni(serie)
+    for s in elenco:
+        s["disponibile"] = d is not None and os.path.exists(
+            percorso_serie_stazione(serie, s["codice"], d))
+    return jsonify(elenco)
 
 
 @app.route("/serie/<codice>")
@@ -129,12 +152,8 @@ def serie_stazione(codice):
     except ValueError:
         abort(404)
 
-    # Costruisco il percorso: i componenti sono tutti validati, niente traversal
-    percorso = os.path.join(
-        CARTELLA_SERIE, serie,
-        f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}",
-        codice, f"{codice}.csv",
-    )
+    # Componenti tutti validati, niente traversal
+    percorso = percorso_serie_stazione(serie, codice, d)
     if not os.path.exists(percorso):
         abort(404)
 
