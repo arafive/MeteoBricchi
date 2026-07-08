@@ -15,28 +15,16 @@ trap "rm -f $LOCKFILE" EXIT
 touch "$LOCKFILE"
 
 ##############################################################################
-DEST="/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi"
+SOURCE="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D"
+RSYNC_OPTS=(-rahzPuv --update --modify-window=1 --info=progress2 --include='*/' --include='*.png' --include='*.csv' --include='*.json' --exclude='*')
 
-cd "$DEST" || exit 1
-rsync -rahzPuv --update --modify-window=1 --info=progress2 \
-    --include='*/' \
-    --include='*.png' \
-    --include='*.csv' \
-    --include='*.json' \
-    --exclude='*' \
-    meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D .
-
-##############################################################################
-
-DEST="/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi"
-cd "$DEST" || exit 1
-rsync -rahzPuv --update --modify-window=1 --info=progress2 \
-    --include='*/' \
-    --include='*.png' \
-    --include='*.csv' \
-    --include='*.json' \
-    --exclude='*' \
-    meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D .
+for DEST in "/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi" "/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi"; do
+    if [ -d "$DEST" ]; then
+        cd "$DEST" && rsync "${RSYNC_OPTS[@]}" "$SOURCE" .
+    else
+        echo "$(date): $DEST non trovata, salto"
+    fi
+done
 
 echo "$(date): sincronizzazione completata"
 
