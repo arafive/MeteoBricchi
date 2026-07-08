@@ -579,6 +579,31 @@
         return cacheShapefile.get(id);
       }
 
+      // Popup generico: elenca tutte le proprieta' non vuote della feature
+      // cliccata. Generico perche' i 5 shapefile hanno schemi diversi e non
+      // tutti ancora noti: niente campi cablati per nome.
+      function costruisciPopupShapefile(props) {
+        const righe = Object.keys(props)
+          .filter((k) => props[k] !== null && String(props[k]).trim() !== "")
+          .map(
+            (k) =>
+              '<div style="display:flex;justify-content:space-between;gap:14px;margin:3px 0;">' +
+              '<span style="color:#5a6b7b;">' +
+              k +
+              "</span>" +
+              '<span style="font-weight:600;text-align:right;">' +
+              props[k] +
+              "</span>" +
+              "</div>",
+          )
+          .join("");
+        return (
+          '<div style="font-size:12px;max-height:240px;overflow-y:auto;min-width:200px;">' +
+          (righe || "Nessuna informazione disponibile") +
+          "</div>"
+        );
+      }
+
       function impostaShapefile(id, attivo) {
         if (!attivo) {
           if (livelliShapefile[id]) {
@@ -599,6 +624,9 @@
               color: (def && def.colore) || "#2f6fed",
               weight: 1.5,
               fillOpacity: 0.04,
+            },
+            onEachFeature: (feature, layer) => {
+              layer.bindPopup(costruisciPopupShapefile(feature.properties));
             },
           }).addTo(mappa);
         });
