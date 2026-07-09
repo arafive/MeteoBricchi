@@ -16,9 +16,10 @@ touch "$LOCKFILE"
 
 ##############################################################################
 SOURCE="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D"
-SOURCE_GEOCOLOUR="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/geocolour/202*"
-SOURCE_SANDWICH="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/sandwich/202*"
-RSYNC_OPTS=(-rahzPuv --update --modify-window=1 --info=progress2 --include='*/' --include='*.png' --include='*.csv' --include='*.json' --include='*.webp' --exclude='*')
+SOURCE_GEOCOLOUR="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/geocolour/"
+SOURCE_SANDWICH="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/sandwich/"
+RSYNC_OPTS=(-rahzPuv --update --modify-window=1 --info=progress2 --include='*/' --include='*.png' --include='*.csv' --include='*.json' --exclude='*')
+RSYNC_OPTS_MTG=(-rahzPuv --update --modify-window=1 --info=progress2 --include='202*/' --include='202*/**' --exclude='*')
 
 DEST_SCRIVANIA="/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi"
 DEST_2TB="/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi"
@@ -27,9 +28,9 @@ for DEST in "$DEST_SCRIVANIA" "$DEST_2TB"; do
 if [ -d "$DEST" ]; then
         cd "$DEST" || continue
         rsync "${RSYNC_OPTS[@]}" "$SOURCE" .
-        # mkdir -p geocolour sandwich
-        rsync "${RSYNC_OPTS[@]}" "$SOURCE_GEOCOLOUR" dati2D/geocolour/.
-        rsync "${RSYNC_OPTS[@]}" "$SOURCE_SANDWICH" dati2D/sandwich/.
+        mkdir -p dati2D/geocolour dati2D/sandwich
+        rsync "${RSYNC_OPTS_MTG[@]}" "$SOURCE_GEOCOLOUR" dati2D/geocolour/.
+        rsync "${RSYNC_OPTS_MTG[@]}" "$SOURCE_SANDWICH" dati2D/sandwich/.
     else
         echo "$(date): $DEST non trovata, salto"
     fi

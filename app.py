@@ -286,12 +286,15 @@ def radar_lista():
     frame = trova_frame(cartella, "png")
     if not frame:
         return jsonify({"totale": 0, "bounds": None, "nomi": []})
-    try:
-        with open(os.path.splitext(frame[0])[0] + ".json") as f:
-            sidecar = json.load(f)
-        bounds = sidecar["bounds"]
-    except (OSError, ValueError, KeyError):
-        bounds = None
+    bounds = None
+    for percorso_frame in frame:
+        try:
+            with open(os.path.splitext(percorso_frame)[0] + ".json") as f:
+                sidecar = json.load(f)
+            bounds = sidecar["bounds"]
+            break
+        except (OSError, ValueError, KeyError):
+            continue
     nomi = [os.path.splitext(os.path.basename(p))[0] for p in frame]
     return jsonify({
         "totale": len(frame),

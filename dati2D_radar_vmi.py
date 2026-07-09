@@ -36,21 +36,23 @@ def f_prendi_ultimo_istante_buono(ds):
         if not np.all(np.isnan(a)):
             print(f'trovata {t}')
             return t
+        else:
+            print(f'Tutti NaN per {t}')
         
 # %%
 area = (4.5, 20.4, 35.0, 47.8) # italia
-sovrascrivi = True
+sovrascrivi = False
 
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
-lista_tempi = [adesso_0_UTC]
-# lista_tempi = pd.date_range('2026-07-03 16:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+# lista_tempi = [adesso_0_UTC]
+lista_tempi = pd.date_range('2026-07-09 14:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
     print(f'{cartella_destinazione=}')
     
-    adesso_1_UTC = adesso_0_UTC - pd.Timedelta(hours=1)
+    adesso_1_UTC = adesso_0_UTC - pd.Timedelta(hours=3)
     
     ds = ds_tot.sel(time=slice(adesso_1_UTC, adesso_0_UTC))
     

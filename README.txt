@@ -11,7 +11,7 @@ Aggiungi osservati di umidità e pioggia per le nuove RF.
 Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
 Gestione osservati nei plot 1D -> Run ogni ora.
 Logo meteobricchi.
-Metti gli shapefile come su OMIRL (inseriscili nel bottone Layer).
+Ci vuole un bottone che riporti al momento presente.
 Aggiungi zona limite al radar ai png di VMI.
 Aggiungi frecce direzione del vento.
 Salva in webp invece che png.

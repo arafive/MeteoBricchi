@@ -908,7 +908,7 @@
             if (mioToken !== richiestaCampo[campo]) return;
             if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
             livelliCampo[campo] = L.imageOverlay(frame.src, lista.bounds, {
-              opacity: campo === "satellite" ? 0.85 : 0.75,
+              opacity: campo === "satellite" ? 0.95 : 0.75,
               interactive: false,
               // Idee per interazioni:
               // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
