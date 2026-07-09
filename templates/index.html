@@ -27,6 +27,25 @@
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
+    <style>
+      .ape-hover {
+        position: relative;
+        display: inline-block;
+      }
+      .ape-hover .ape-animata {
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .ape-hover.ape-attiva .ape-statica {
+        opacity: 0;
+      }
+      .ape-hover.ape-attiva .ape-animata {
+        opacity: 1;
+      }
+    </style>
   </head>
 
   <body>
@@ -43,16 +62,37 @@
         <div class="menu-scroll">
           <h1>
             MeteoBricchi
-            <img
-              src="{{ url_for('static', filename='icone/ape.png') }}"
-              class="emoji-icon-gif"
-              alt=""
-            />
+            <span class="ape-hover">
+              <img
+                src="{{ url_for('static', filename='icone/ape.png') }}"
+                class="emoji-icon-gif ape-statica"
+                alt=""
+              />
+              <img
+                src="{{ url_for('static', filename='icone/ape.gif') }}"
+                class="emoji-icon-gif ape-animata"
+                alt=""
+              />
+            </span>
           </h1>
 
           <div class="gruppo">
             <label for="data">Data</label>
-            <input type="datetime-local" id="data" step="300" />
+            <div class="riga-data">
+              <input type="datetime-local" id="data" step="300" />
+              <button
+                type="button"
+                id="bottoneOggi"
+                class="bottone-oggi"
+                title="Torna ad ora attuale (UTC)"
+                aria-label="Torna ad ora attuale (UTC)"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/adesso.svg') }}"
+                  alt=""
+                />
+              </button>
+            </div>
           </div>
 
           <!-- SERIE = dati 1D (serie temporali): stazioni puntuali -->
@@ -213,7 +253,7 @@
 
       <div id="controlli-radar" hidden>
         <button type="button" id="radarIndietro">◀</button>
-        <span id="radarEtichetta"></span>
+        <div id="radarEtichette"></div>
         <button type="button" id="radarAvanti">▶</button>
       </div>
 
@@ -553,7 +593,7 @@
         ).addTo(mappa);
       }
 
-      impostaMappa("04"); // di default, quella gia' attiva finora
+      impostaMappa("07"); // di default, quella gia' attiva finora
       // nessun sentiero attivo di default: non chiamo impostaSentiero()
 
       // --- Shapefile: confini geografici statici, sovrapponibili insieme
@@ -660,7 +700,7 @@
       const controlliRadar = document.getElementById("controlli-radar");
       const radarIndietro = document.getElementById("radarIndietro");
       const radarAvanti = document.getElementById("radarAvanti");
-      const radarEtichetta = document.getElementById("radarEtichetta");
+      const radarEtichette = document.getElementById("radarEtichette");
       const controlliSatellite = document.getElementById("controlliSatellite");
       document
         .querySelectorAll('input[name="prodottoSatellite"]')
@@ -769,9 +809,11 @@
         );
       }
 
-      function etichettaIstante(istanteMs) {
+      // Solo la parte data/ora, senza prefisso: riusata sia dal caso "una
+      // riga sola" sia da ciascuna colonna quando i campi sono due.
+      function formattaIstante(istanteMs) {
         const d = new Date(istanteMs);
-        const testo =
+        return (
           String(d.getDate()).padStart(2, "0") +
           "-" +
           String(d.getMonth() + 1).padStart(2, "0") +
@@ -780,11 +822,53 @@
           " " +
           String(d.getHours()).padStart(2, "0") +
           ":" +
-          String(d.getMinutes()).padStart(2, "0");
-        const prefissi = campiAttivi
-          .map((c) => DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].etichetta)
-          .filter(Boolean);
-        return (prefissi.length ? prefissi.join(" + ") + " - " : "") + testo;
+          String(d.getMinutes()).padStart(2, "0")
+        );
+      }
+
+      // Aggiorna il pannellino con le frecce: una riga sola se c'e' zero o
+      // un campo temporale attivo; due colonne (nome sopra, istante proprio
+      // di quel campo sotto) se sono attivi in sovrapposizione. L'istante
+      // proprio di un campo puo' differire leggermente da quello
+      // dell'altro: ciascuno ha la sua lista di frame, indiceFrameCampoVicino
+      // trova il piu' vicino di CIASCUNO all'istante condiviso.
+      function aggiornaEtichetteRadar(istanteCondiviso) {
+        const campiTemporali = campiAttivi.filter((c) => DESCRITTORI_CAMPO[c]);
+
+        if (campiTemporali.length <= 1) {
+          const prefisso = campiTemporali.length
+            ? DESCRITTORI_CAMPO[campiTemporali[0]].etichetta + " - "
+            : "";
+          radarEtichette.classList.remove("a-colonne");
+          radarEtichette.textContent =
+            prefisso + formattaIstante(istanteCondiviso);
+          return;
+        }
+
+        radarEtichette.classList.add("a-colonne");
+        radarEtichette.innerHTML = "";
+        campiTemporali.forEach((campo) => {
+          const indice = indiceFrameCampoVicino(campo, istanteCondiviso);
+          const nomeFrame =
+            indice >= 0 ? listaFrameCampo[campo].nomi[indice] : null;
+          const istanteProprio = nomeFrame ? parseIstante(nomeFrame) : null;
+
+          const colonna = document.createElement("div");
+          colonna.className = "radar-colonna";
+
+          const nome = document.createElement("div");
+          nome.className = "radar-colonna-nome";
+          nome.textContent = DESCRITTORI_CAMPO[campo].etichetta;
+
+          const istanteEl = document.createElement("div");
+          istanteEl.className = "radar-colonna-istante";
+          istanteEl.textContent = formattaIstante(
+            istanteProprio !== null ? istanteProprio : istanteCondiviso,
+          );
+
+          colonna.append(nome, istanteEl);
+          radarEtichette.appendChild(colonna);
+        });
       }
 
       function aggiornaBottoniRadar() {
@@ -953,7 +1037,7 @@
 
         const istante = listaIstanti[indice];
         inputData.value = formattaDataOraSenzaArrotondare(new Date(istante));
-        radarEtichetta.textContent = etichettaIstante(istante);
+        aggiornaEtichetteRadar(istante);
 
         campiAttivi.forEach((campo) => {
           if (DESCRITTORI_CAMPO[campo]) mostraFrameCampo(campo, istante);
@@ -1005,7 +1089,7 @@
         }
         return inputData.value
           ? new Date(inputData.value).getTime()
-          : Date.now();
+          : new Date(formattaDataOraUTC(new Date())).getTime(); // ripiego raro (campo vuoto): stessa convenzione UTC-come-cifre-locali
       }
 
       // Ricostruisce la lista istanti condivisa dai campi attivi e naviga al
@@ -1022,7 +1106,8 @@
           mostraIstante(trovaIndiceIstantePiuVicino(target));
         } else {
           indiceIstante = -1;
-          radarEtichetta.textContent = "(nessun dato)";
+          radarEtichette.classList.remove("a-colonne");
+          radarEtichette.textContent = "(nessun dato)";
           radarIndietro.disabled = true;
           radarAvanti.disabled = true;
         }
@@ -1188,7 +1273,7 @@
 
         // Cerchio invisibile più grande: allarga la zona di hover/click
         L.circleMarker([s.lat, s.lon], {
-          radius: stilePallino.radius + 12,
+          radius: stilePallino.radius + 4,
           stroke: false,
           fillOpacity: 0,
         })
@@ -1303,6 +1388,7 @@
         );
 
         stato.smontaTrascinamento = rendiTrascinabile(elFinestra, elTitolo);
+        stato.smontaRidimensionamento = rendiRidimensionabile(elFinestra);
 
         // ECharts non si ridimensiona da solo se cambiano le dimensioni del
         // contenitore per altre vie (qui: trascinando l'angolo della
@@ -1325,6 +1411,7 @@
         if (f.grafico) f.grafico.dispose();
         f.osservatore.disconnect();
         f.smontaTrascinamento();
+        f.smontaRidimensionamento();
         f.elFinestra.remove();
         finestreAperte.delete(codice);
         if (finestraAttiva === codice) finestraAttiva = null;
@@ -1402,6 +1489,68 @@
       // .modale-overlay) a posizionata liberamente (position: fixed, in
       // px), e resta li' finche' non la si trascina di nuovo (anche
       // chiudendo e riaprendo il modale).
+      // Come rendiTrascinabile, ma per ridimensionare da un bordo/angolo
+      // qualsiasi invece che dal solo angolo che offre il resize nativo del
+      // browser. min/max-width/height restano quelli CSS: il browser li
+      // rispetta comunque anche quando la larghezza/altezza e' impostata a
+      // mano da JS, quindi non serve reimplementare i limiti qui.
+      function rendiRidimensionabile(finestra) {
+        const direzioni = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+        let attiva = null;
+        let startX = 0,
+          startY = 0,
+          startW = 0,
+          startH = 0,
+          startLeft = 0,
+          startTop = 0;
+
+        const maniglie = direzioni.map(function (direzione) {
+          const maniglia = document.createElement("div");
+          maniglia.className = "maniglia-ridimensiona maniglia-" + direzione;
+          maniglia.addEventListener("mousedown", (e) => {
+            attiva = direzione;
+            const rect = finestra.getBoundingClientRect();
+            startX = e.clientX;
+            startY = e.clientY;
+            startW = rect.width;
+            startH = rect.height;
+            startLeft = rect.left;
+            startTop = rect.top;
+            finestra.style.position = "fixed";
+            e.preventDefault();
+          });
+          finestra.appendChild(maniglia);
+          return maniglia;
+        });
+
+        const gestisciMousemove = (e) => {
+          if (!attiva) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          if (attiva.includes("e")) finestra.style.width = startW + dx + "px";
+          if (attiva.includes("s")) finestra.style.height = startH + dy + "px";
+          if (attiva.includes("w")) {
+            finestra.style.width = startW - dx + "px";
+            finestra.style.left = startLeft + dx + "px";
+          }
+          if (attiva.includes("n")) {
+            finestra.style.height = startH - dy + "px";
+            finestra.style.top = startTop + dy + "px";
+          }
+        };
+        const gestisciMouseup = () => {
+          attiva = null;
+        };
+        document.addEventListener("mousemove", gestisciMousemove);
+        document.addEventListener("mouseup", gestisciMouseup);
+
+        return function smonta() {
+          document.removeEventListener("mousemove", gestisciMousemove);
+          document.removeEventListener("mouseup", gestisciMouseup);
+          maniglie.forEach((m) => m.remove());
+        };
+      }
+
       function rendiTrascinabile(finestra, maniglia) {
         let trascinando = false;
         let offsetX = 0;
@@ -1574,8 +1723,30 @@
         );
       }
 
-      // Data/ora odierna come valore iniziale
-      inputData.value = formattaDataOraLocale(new Date());
+      // Come formattaDataOraLocale, ma con i componenti UTC: i nomi dei
+      // frame (radar/satellite/fulmini) sono in UTC, mentre l'input
+      // <datetime-local> viene sempre letto/scritto con i componenti
+      // "locali" del Date (coerente con parseIstante piu' sopra, che fa lo
+      // stesso). Serve per il bottone "torna ad ora attuale".
+      function formattaDataOraUTC(d) {
+        d.setUTCMinutes(d.getUTCMinutes() - (d.getUTCMinutes() % 5), 0, 0);
+        return (
+          d.getUTCFullYear() +
+          "-" +
+          String(d.getUTCMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getUTCDate()).padStart(2, "0") +
+          "T" +
+          String(d.getUTCHours()).padStart(2, "0") +
+          ":" +
+          String(d.getUTCMinutes()).padStart(2, "0")
+        );
+      }
+
+      // Data/ora odierna come valore iniziale, in UTC: coerente con i nomi
+      // dei frame radar/satellite/fulmini (che sono in UTC) e con
+      // parseIstante, che legge quei nomi con i getter "locali" del Date.
+      inputData.value = formattaDataOraUTC(new Date());
 
       // Riporta il campo temporale attivo (radar/riflettivita/fulmini) al
       // frame piu' vicino alla Data corrente, e ridisegna il grafico della
@@ -1584,7 +1755,9 @@
       function aggiornaConData() {
         if (campiAttivi.some((c) => DESCRITTORI_CAMPO[c])) {
           sincronizzaENavigaA(
-            inputData.value ? new Date(inputData.value).getTime() : Date.now(),
+            inputData.value
+              ? new Date(inputData.value).getTime()
+              : new Date(formattaDataOraUTC(new Date())).getTime(), // stesso ripiego di istanteCorrenteMs
           );
         }
         if (serieAttiva) caricaStazioni(serieAttiva); // la disponibilita' dipende dalla data
@@ -1609,9 +1782,28 @@
           aggiornaConData();
         }, 0);
       }
+      // Se il calendario nativo del browser mostra un pulsante
+      // "Oggi", cliccarlo cambia solo la data (l'orario resta quello
+      // che c'era prima) - non e' quindi "adesso" come ci si
+      // aspetterebbe dal bottone dedicato. Non esiste un modo per
+      // distinguere via JS quel click da una scelta manuale della
+      // stessa data lasciando l'ora invariata: quindi, per coerenza
+      // col bottone Oggi, ogni volta che la data risultante e' oggi
+      // (in UTC) saltiamo comunque al momento presente.
+      function eDataOdierna(valore) {
+        if (!valore) return false;
+        const oggiUTC = formattaDataOraUTC(new Date()).slice(0, 10); // solo AAAA-MM-GG
+        return valore.slice(0, 10) === oggiUTC;
+      }
+
       let timerCorrezioneMinuti = null;
       function rimandaCorrezioneMinuti() {
         clearTimeout(timerCorrezioneMinuti);
+        if (eDataOdierna(inputData.value)) {
+          inputData.value = formattaDataOraUTC(new Date());
+          aggiornaConData();
+          return;
+        }
         timerCorrezioneMinuti = setTimeout(correggiMinutiInputData, 700);
       }
       // Chrome puo' emettere "change" gia' non appena il valore diventa
@@ -1625,6 +1817,12 @@
       inputData.addEventListener("blur", () => {
         clearTimeout(timerCorrezioneMinuti);
         correggiMinutiInputData();
+      });
+
+      document.getElementById("bottoneOggi").addEventListener("click", () => {
+        clearTimeout(timerCorrezioneMinuti); // niente correzioni in ritardo che sovrascrivano questo valore
+        inputData.value = formattaDataOraUTC(new Date());
+        aggiornaConData();
       });
       // Invio conferma la data digitata a mano: esce dal campo (blur), il
       // che fa scattare "blur" sopra e quindi correzione + aggiornamento
@@ -1962,6 +2160,25 @@
 
       // All'avvio nessuna serie è selezionata: la mappa parte senza pallini.
       // I pallini compaiono quando l'utente sceglie una serie.
+
+      // Ape animata: parte da sola a un istante casuale (1-30 minuti da
+      // ora), resta attiva per la durata di un ciclo della gif, poi torna
+      // statica e ne pianifica un'altra, sempre a distanza casuale.
+      const apeWrapper = document.querySelector(".ape-hover");
+      const DURATA_APE_GIF_MS = 4950; // durata di un ciclo di ape.gif
+
+      function pianificaApeAnimata() {
+        const attesaMs = (1 + Math.random() * 4) * 60 * 1000; // 1-5 minuti
+        setTimeout(() => {
+          apeWrapper.classList.add("ape-attiva");
+          setTimeout(() => {
+            apeWrapper.classList.remove("ape-attiva");
+            pianificaApeAnimata();
+          }, DURATA_APE_GIF_MS);
+        }, attesaMs);
+      }
+
+      if (apeWrapper) pianificaApeAnimata();
     </script>
   </body>
 </html>

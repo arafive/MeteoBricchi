@@ -24,7 +24,7 @@ window.Grafici = (function () {
       unita: "\u00B0C", // °C
       yMin: null,
       yMax: null,
-      autoRange: true,
+      // autoRange: true, // ci sarà un baco...
       tickInterval: 2,
     },
   };
@@ -78,15 +78,19 @@ window.Grafici = (function () {
   ]);
 
   const DISATTIVATI_DEFAULT = new Set([
+    // vento: acceso di default solo QRF modulo, Obs modulo, QRF raffica, Obs raffica
     "QRF modulo 25°-75°",
+    "Raw modulo",
     "QRF raffica 25°-75°",
-    // "QRF Tmin",
-    // "QRF Tmin 25°-75°",
-    // "Obs Tmin",
-    // "QRF Tmean 25°-75°",
-    // "QRF Tmax",
-    // "QRF Tmax 25°-75°",
-    // "Obs Tmax",
+    "Raw raffica",
+    // temperatura: acceso di default solo QRF Tmin, QRF Tmean, QRF Tmax, Obs Tmean
+    "QRF Tmin 25°-75°",
+    "Obs Tmin",
+    "QRF Tmean 25°-75°",
+    "Raw Tmean",
+    "Clima Tmean",
+    "QRF Tmax 25°-75°",
+    "Obs Tmax",
   ]);
 
   function costruisciSelected() {
@@ -145,33 +149,41 @@ window.Grafici = (function () {
         };
       });
 
-    const DEFINIZIONI_BANDA = [
-      {
-        nomi: NOMI_BANDA_TMIN,
-        colore: "rgba(23, 190, 207, 0.5)",
-        etichetta: "QRF Tmin 25°-75°",
-      },
-      {
-        nomi: NOMI_BANDA_TMEAN,
-        colore: "rgba(44, 160, 44, 0.5)",
-        etichetta: "QRF Tmean 25°-75°",
-      },
-      {
-        nomi: NOMI_BANDA_TMAX,
-        colore: "rgba(214, 39, 40, 0.5)",
-        etichetta: "QRF Tmax 25°-75°",
-      },
-      {
-        nomi: NOMI_BANDA_MODULO,
-        colore: "rgba(23, 190, 207, 0.5)",
-        etichetta: "QRF modulo 25°-75°",
-      },
-      {
-        nomi: NOMI_BANDA_RAFFICA,
-        colore: "rgba(148, 103, 189, 0.5)",
-        etichetta: "QRF raffica 25°-75°",
-      },
-    ];
+    // Solo le bande pertinenti alla serie in disegno: prima si cercavano
+    // sempre tutte e 5 (anche quelle dell'altra serie), che non trovandole
+    // mai facevano scattare il warning di debug per un falso positivo.
+    const DEFINIZIONI_BANDA_PER_SERIE = {
+      temperatura: [
+        {
+          nomi: NOMI_BANDA_TMIN,
+          colore: "rgba(23, 190, 207, 0.5)",
+          etichetta: "QRF Tmin 25°-75°",
+        },
+        {
+          nomi: NOMI_BANDA_TMEAN,
+          colore: "rgba(44, 160, 44, 0.5)",
+          etichetta: "QRF Tmean 25°-75°",
+        },
+        {
+          nomi: NOMI_BANDA_TMAX,
+          colore: "rgba(214, 39, 40, 0.5)",
+          etichetta: "QRF Tmax 25°-75°",
+        },
+      ],
+      vento: [
+        {
+          nomi: NOMI_BANDA_MODULO,
+          colore: "rgba(23, 190, 207, 0.5)",
+          etichetta: "QRF modulo 25°-75°",
+        },
+        {
+          nomi: NOMI_BANDA_RAFFICA,
+          colore: "rgba(148, 103, 189, 0.5)",
+          etichetta: "QRF raffica 25°-75°",
+        },
+      ],
+    };
+    const DEFINIZIONI_BANDA = DEFINIZIONI_BANDA_PER_SERIE[serie] || [];
 
     const tracceBanda = [];
     DEFINIZIONI_BANDA.forEach(function (def) {
@@ -181,7 +193,16 @@ window.Grafici = (function () {
       const traccAlta = dati.tracce.find(function (t) {
         return t.nome === def.nomi.alto;
       });
-      if (!traccBassa || !traccAlta) return;
+      if (!traccBassa || !traccAlta) {
+        console.warn(
+          "Banda '" +
+            def.etichetta +
+            "' non disegnata: manca '" +
+            (traccBassa ? def.nomi.alto : def.nomi.basso) +
+            "' tra le tracce ricevute dal backend.",
+        );
+        return;
+      }
 
       const stackId = "banda-" + def.nomi.alto;
       tracceBanda.push(
@@ -294,25 +315,15 @@ window.Grafici = (function () {
   function costruisciAsseY(cfg, dati) {
     const yAxis = { type: "value", axisLabel: { fontSize: 11 } };
 
-    let yMin = cfg.yMin;
-    let yMax = cfg.yMax;
-
-    if (cfg.autoRange) {
-      const estremi = calcolaEstremiDati(dati);
-      if (estremi) {
-        const passo = cfg.tickInterval || 1;
-        yMin = Math.floor(estremi.min / passo) * passo - passo;
-        yMax = Math.ceil(estremi.max / passo) * passo + passo;
-      }
-    }
-
-    if (yMin !== null && yMin !== undefined) yAxis.min = yMin;
-    if (yMax !== null && yMax !== undefined) yAxis.max = yMax;
-    console.log("yAxis finale:", {
-      min: yAxis.min,
-      max: yAxis.max,
-      interval: yAxis.interval,
-    });
+    // Niente piu' autoRange/calcolaEstremiDati: fissare yAxis.min/max a
+    // mano impediva a ECharts di ricalcolare lo stacking delle bande
+    // quando si accendevano/spegnevano dalla legenda (restavano
+    // visivamente "non impilate" finche' non arrivava un cambiamento vero
+    // sull'asse - vedi discussione in chat). Senza min/max espliciti,
+    // l'autoscala nativa di ECharts ricalcola l'estensione (e quindi anche
+    // lo stacking) ad ogni cambio di visibilita' delle serie.
+    if (cfg.yMin !== null && cfg.yMin !== undefined) yAxis.min = cfg.yMin;
+    if (cfg.yMax !== null && cfg.yMax !== undefined) yAxis.max = cfg.yMax;
     if (cfg.tickInterval) yAxis.interval = cfg.tickInterval;
     if (cfg.unita) {
       yAxis.name = cfg.unita;
@@ -326,32 +337,56 @@ window.Grafici = (function () {
 
   // Costruisce la configurazione della legenda in base alla serie.
   // Per "vento" servono due colonne separate (modulo / raffica).
+  // Icone custom per ogni voce di legenda: niente icona "di default" di
+  // ECharts, che per le serie di tipo line è sempre trattino+pallino a
+  // prescindere dal symbol:"none" dei dati veri (quello vale solo per i
+  // marker sul grafico, non per l'icona della legenda). Un blocchetto
+  // pieno/tratteggiato/punteggiato disegnato a mano evita il pallino e
+  // riflette comunque lo stile reale della linea.
+  const ICONA_PER_STILE = {
+    solid: "path://M0,7 L20,7 L20,13 L0,13 Z",
+    dashed: "path://M0,7L8,7L8,13L0,13ZM12,7L20,7L20,13L12,13Z",
+    dotted:
+      "path://M0,7L4,7L4,13L0,13ZM8,7L12,7L12,13L8,13ZM16,7L20,7L20,13L16,13Z",
+  };
+
   function costruisciLegenda(serie) {
     const stileVoce = {
-      icon: "path://M0,7 L20,7 L20,13 L0,13 Z",
       textStyle: { fontSize: 11 },
       itemWidth: 18,
       itemHeight: 10,
       itemGap: 12,
     };
+    // Le bande 25°-75° rappresentano un'AREA piena (la loro lineStyle e'
+    // invisibile, opacity 0): stessa icona "solid" delle linee continue.
+    const iconaBanda = ICONA_PER_STILE.solid;
+
+    // Voce di legenda per una traccia vera (non banda, non separatore):
+    // sceglie l'icona in base allo stile reale della linea (STILE_SORGENTE).
+    function voce(nome) {
+      return {
+        name: nome,
+        icon: ICONA_PER_STILE[STILE_SORGENTE[nome]] || ICONA_PER_STILE.solid,
+      };
+    }
 
     if (serie === "vento") {
       return Object.assign(
-        { top: 4, right: 10, orient: "vertical", align: "right" },
+        { bottom: 0, left: "center", orient: "horizontal" },
         stileVoce,
         {
           data: [
-            "QRF modulo",
-            "QRF modulo 25°-75°",
-            "Raw modulo",
-            "Obs modulo",
+            voce("QRF modulo"),
+            { name: "QRF modulo 25°-75°", icon: iconaBanda },
+            voce("Raw modulo"),
+            voce("Obs modulo"),
             { name: "__sep0__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep1__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep2__", icon: "none" }, // separatore invisibile tra i due gruppi
-            "QRF raffica",
-            "QRF raffica 25°-75°",
-            "Raw raffica",
-            "Obs raffica",
+            voce("QRF raffica"),
+            { name: "QRF raffica 25°-75°", icon: iconaBanda },
+            voce("Raw raffica"),
+            voce("Obs raffica"),
           ],
           formatter: function (nome) {
             return nome.indexOf("__sep") === 0 ? "" : nome;
@@ -363,28 +398,28 @@ window.Grafici = (function () {
 
     if (serie === "temperatura") {
       return Object.assign(
-        { top: 4, right: 10, orient: "vertical", align: "right" },
+        { bottom: 0, left: "center", orient: "horizontal" },
         stileVoce,
         {
           data: [
-            "QRF Tmin",
-            "QRF Tmin 25°-75°",
-            "Obs Tmin",
+            voce("QRF Tmin"),
+            { name: "QRF Tmin 25°-75°", icon: iconaBanda },
+            voce("Obs Tmin"),
             { name: "__sep0__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep1__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep2__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep3__", icon: "none" }, // separatore invisibile tra i due gruppi
-            "QRF Tmean",
-            "QRF Tmean 25°-75°",
-            "Obs Tmean",
-            "Raw Tmean",
-            "Clima Tmean",
+            voce("QRF Tmean"),
+            { name: "QRF Tmean 25°-75°", icon: iconaBanda },
+            voce("Obs Tmean"),
+            voce("Raw Tmean"),
+            voce("Clima Tmean"),
             { name: "__sep4__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep5__", icon: "none" }, // separatore invisibile tra i due gruppi
             { name: "__sep6__", icon: "none" }, // separatore invisibile tra i due gruppi
-            "QRF Tmax",
-            "QRF Tmax 25°-75°",
-            "Obs Tmax",
+            voce("QRF Tmax"),
+            { name: "QRF Tmax 25°-75°", icon: iconaBanda },
+            voce("Obs Tmax"),
           ],
           formatter: function (nome) {
             return nome.indexOf("__sep") === 0 ? "" : nome;
@@ -393,9 +428,13 @@ window.Grafici = (function () {
         },
       );
     }
-    return Object.assign({ top: 4 }, stileVoce, {
-      selected: costruisciSelected(),
-    });
+    return Object.assign(
+      { bottom: 0, left: "center", orient: "horizontal" },
+      stileVoce,
+      {
+        selected: costruisciSelected(),
+      },
+    );
   }
 
   // Costruisce l'intero oggetto option di ECharts per una serie.
@@ -408,9 +447,9 @@ window.Grafici = (function () {
       animationThreshold: 10000,
       grid: {
         left: 44,
-        right: serie === "vento" || serie === "temperatura" ? 150 : 14,
+        right: 14,
         top: 50,
-        bottom: 26,
+        bottom: 100, // spazio per la legenda orizzontale sotto l'asse x, su piu' righe se serve
       },
       tooltip: {
         trigger: "axis",
@@ -521,9 +560,28 @@ window.Grafici = (function () {
   // API pubblica: disegna (o aggiorna) il grafico della serie nel contenitore.
   // Riusa l'istanza ECharts già presente sul contenitore, se c'è.
   function disegna(contenitore, dati, serie) {
-    const grafico =
-      echarts.getInstanceByDom(contenitore) || echarts.init(contenitore);
-    grafico.setOption(opzioni(dati, serie), { notMerge: true });
+    const esistente = echarts.getInstanceByDom(contenitore);
+    const grafico = esistente || echarts.init(contenitore);
+    const opz = opzioni(dati, serie);
+
+    // Se il grafico esisteva gia' (non e' il primo disegno), preservo cio'
+    // che l'utente ha acceso/spento a mano nella legenda: altrimenti ogni
+    // ridisegno (cambio data, "Oggi", rotella sul calendario, refresh...)
+    // lo resetterebbe silenziosamente ai default, con notMerge:true.
+    if (esistente) {
+      const vecchiaLegenda = esistente.getOption().legend;
+      const vecchioSelected =
+        vecchiaLegenda && vecchiaLegenda[0] && vecchiaLegenda[0].selected;
+      if (vecchioSelected) {
+        opz.legend.selected = Object.assign(
+          {},
+          opz.legend.selected,
+          vecchioSelected,
+        );
+      }
+    }
+
+    grafico.setOption(opz, { notMerge: true });
     return grafico;
   }
 

@@ -107,6 +107,41 @@ body {
   color: #cbd2d9;
 }
 
+#menu .riga-data {
+  display: flex;
+  gap: 6px;
+}
+
+#menu .riga-data input {
+  flex: 1 1 auto;
+  width: auto; /* sovrascrive #menu input{width:100%}, altrimenti confligge col bottone accanto */
+  min-width: 0;
+}
+
+#menu .bottone-oggi {
+  flex: none;
+  width: 38px;
+  height: 38px; /* dimensione fissa: circa l'altezza reale dell'input accanto (padding 8px + line-height + bordi) */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #323f4b;
+  border: 1px solid #3e4c59;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#menu .bottone-oggi img {
+  width: 18px;
+  height: 18px;
+}
+
+#menu .bottone-oggi:hover {
+  border-color: #7b8794;
+}
+
 /* Mappa */
 #mappa {
   flex: 1;
@@ -177,10 +212,72 @@ body {
   min-height: 260px;
   max-width: 95vw;
   max-height: 90vh;
-  resize: both;
+  resize: none; /* sostituito dalle maniglie custom, per poter ridimensionare da ogni lato */
   overflow: hidden;
+  box-sizing: border-box; /* cosi' i px impostati via JS coincidono con getBoundingClientRect() */
   display: flex;
   flex-direction: column;
+}
+
+.finestra-grafico .maniglia-ridimensiona {
+  position: absolute;
+  z-index: 10;
+}
+.finestra-grafico .maniglia-n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  cursor: ns-resize;
+}
+.finestra-grafico .maniglia-s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  cursor: ns-resize;
+}
+.finestra-grafico .maniglia-e {
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 6px;
+  cursor: ew-resize;
+}
+.finestra-grafico .maniglia-w {
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 6px;
+  cursor: ew-resize;
+}
+.finestra-grafico .maniglia-ne {
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+.finestra-grafico .maniglia-nw {
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+.finestra-grafico .maniglia-se {
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+.finestra-grafico .maniglia-sw {
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
 }
 
 .finestra-grafico .titolo-popup {
@@ -289,12 +386,12 @@ body {
   z-index: 1500;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   background: rgba(31, 41, 51, 0.9);
   color: #e4e7eb;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font: 13px system-ui;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font: 15px system-ui;
 }
 
 #controlli-radar[hidden] {
@@ -359,13 +456,38 @@ body {
   color: #e4e7eb;
   border: 1px solid #3e4c59;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 8px 16px;
+  font-size: 18px;
   cursor: pointer;
 }
 
 #controlli-radar button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+#radarEtichette.a-colonne {
+  display: flex;
+  gap: 20px;
+}
+
+.radar-colonna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.3;
+}
+
+.radar-colonna-nome {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9aa5b1;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.radar-colonna-istante {
+  font-size: 15px;
 }
 
 .emoji-icon-gif {
