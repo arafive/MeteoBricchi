@@ -5,21 +5,25 @@ README.txt
 :Date: 2026-05-08 08:53
 
 ########### TODO
-Risolvi problema IQR della temperatura.
-Aggiungi nuove stazioni previste.
-Aggiungi osservati di umidità e pioggia per le nuove RF.
-Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
-Gestione osservati nei plot 1D -> Run ogni ora.
-Logo meteobricchi.
-Ci vuole un bottone che riporti al momento presente.
-Aggiungi zona limite al radar ai png di VMI.
-Aggiungi frecce direzione del vento.
-Salva in webp invece che png.
-Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
-Se seleziono un campo, si chiudono tutte le schede stazioni aperte.
-BACO in run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere
-BACO sulla meteo-dev devo per forza mettere meteopy a 3.12 perché VMI non funziona con la 3.9 in quanto ha zarr
+--- Grafici 1D
+    Risolvi problema IQR della temperatura.
+    Aggiungi nuove stazioni previste.
+    Aggiungi osservati di umidità e pioggia per le nuove RF.
+    Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
+    Gestione osservati nei plot 1D -> Run ogni ora.
+    Aggiungi frecce direzione del vento.
 
+--- Grafici 2D    
+    Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
+    Aggiungi zona limite al radar ai png di VMI.
+    Salva in webp invece che png.
+
+--- Altro
+    Logo meteobricchi.
+
+--- Bachi
+    In run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere
+    Sulla meteo-dev devo per forza mettere meteopy a 3.12 perché VMI non funziona con la 3.9 in quanto ha zarr
 
 ###########
 
