@@ -16,15 +16,35 @@ touch "$LOCKFILE"
 
 ##############################################################################
 SOURCE="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D"
-RSYNC_OPTS=(-rahzPuv --update --modify-window=1 --info=progress2 --include='*/' --include='*.png' --include='*.csv' --include='*.json' --exclude='*')
+SOURCE_GEOCOLOUR="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/geocolour/202*"
+SOURCE_SANDWICH="meteo@meteo-dev:/home/cfmi.arpal.org/meteo/QnapDevMeteo/download-mtg/mtg_fci_hd_nord_italia/web/sandwich/202*"
+RSYNC_OPTS=(-rahzPuv --update --modify-window=1 --info=progress2 --include='*/' --include='*.png' --include='*.csv' --include='*.json' --include='*.webp' --exclude='*')
 
-for DEST in "/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi" "/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi"; do
-    if [ -d "$DEST" ]; then
-        cd "$DEST" && rsync "${RSYNC_OPTS[@]}" "$SOURCE" .
+DEST_SCRIVANIA="/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi"
+DEST_2TB="/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi"
+
+for DEST in "$DEST_SCRIVANIA" "$DEST_2TB"; do
+if [ -d "$DEST" ]; then
+        cd "$DEST" || continue
+        rsync "${RSYNC_OPTS[@]}" "$SOURCE" .
+        # mkdir -p geocolour sandwich
+        rsync "${RSYNC_OPTS[@]}" "$SOURCE_GEOCOLOUR" dati2D/geocolour/.
+        rsync "${RSYNC_OPTS[@]}" "$SOURCE_SANDWICH" dati2D/sandwich/.
     else
         echo "$(date): $DEST non trovata, salto"
     fi
 done
 
-echo "$(date): sincronizzazione completata"
+##############################################################################
+# Sync finale tra le due destinazioni locali (mantiene allineate solo le dati2D)
+DATI2D_SCRIVANIA="$DEST_SCRIVANIA/dati2D"
+DATI2D_2TB="$DEST_2TB/dati2D"
 
+if [ -d "$DATI2D_SCRIVANIA" ] && [ -d "$DATI2D_2TB" ]; then
+    rsync "${RSYNC_OPTS[@]}" "$DATI2D_SCRIVANIA"/ "$DATI2D_2TB"/
+    rsync "${RSYNC_OPTS[@]}" "$DATI2D_2TB"/ "$DATI2D_SCRIVANIA"/
+else
+    echo "$(date): una delle due cartelle dati2D non trovata, salto sync finale"
+fi
+
+echo "$(date): sincronizzazione completata"
