@@ -1915,6 +1915,7 @@
             sincronizzaENavigaA(istanteCorrenteMs());
           }
         } else {
+          chiudiTutteLeFinestreGrafico(); // apertura di un nuovo campo: pulizia delle finestre stazione aperte
           if (campiAttivi.length >= MAX_CAMPI_ATTIVI) {
             campiAttivi.forEach((c) => {
               if (DESCRITTORI_CAMPO[c]) spegniCampoTemporale(c);
