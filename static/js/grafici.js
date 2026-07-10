@@ -24,7 +24,7 @@ window.Grafici = (function () {
       unita: "\u00B0C", // °C
       yMin: null,
       yMax: null,
-      // autoRange: true, // ci sarà un baco...
+      limitiArrotondati: true,
       tickInterval: 2,
     },
   };
@@ -303,27 +303,38 @@ window.Grafici = (function () {
       if (valoriValidi.length === 0) return;
       const tMin = Math.min.apply(null, valoriValidi);
       const tMax = Math.max.apply(null, valoriValidi);
-      console.log("Traccia:", t.nome, "min:", tMin, "max:", tMax);
       if (tMin < min) min = tMin;
       if (tMax > max) max = tMax;
     });
     if (!isFinite(min) || !isFinite(max)) return null;
-    console.log("ESTREMO GLOBALE min:", min, "max:", max);
     return { min: min, max: max };
   }
 
   function costruisciAsseY(cfg, dati) {
     const yAxis = { type: "value", axisLabel: { fontSize: 11 } };
 
-    // Niente piu' autoRange/calcolaEstremiDati: fissare yAxis.min/max a
-    // mano impediva a ECharts di ricalcolare lo stacking delle bande
-    // quando si accendevano/spegnevano dalla legenda (restavano
-    // visivamente "non impilate" finche' non arrivava un cambiamento vero
-    // sull'asse - vedi discussione in chat). Senza min/max espliciti,
-    // l'autoscala nativa di ECharts ricalcola l'estensione (e quindi anche
-    // lo stacking) ad ogni cambio di visibilita' delle serie.
-    if (cfg.yMin !== null && cfg.yMin !== undefined) yAxis.min = cfg.yMin;
-    if (cfg.yMax !== null && cfg.yMax !== undefined) yAxis.max = cfg.yMax;
+    if (cfg.limitiArrotondati) {
+      // min/max come FUNZIONI, non numeri fissi: un numero fisso e' quello
+      // che impediva a ECharts di ricalcolare lo stacking delle bande ad
+      // ogni cambio di legenda (restavano "non impilate" - vedi
+      // discussione in chat). Le funzioni invece passano dallo stesso
+      // percorso di calcolo dinamico dell'autoscala nativa, quindi lo
+      // stacking si ricalcola comunque - pur restituendo sempre lo stesso
+      // range fisso (floor/ceil degli estremi del CSV), non quello delle
+      // sole tracce visibili in un dato momento.
+      const estremi = calcolaEstremiDati(dati);
+      if (estremi) {
+        yAxis.min = function () {
+          return Math.floor(estremi.min);
+        };
+        yAxis.max = function () {
+          return Math.ceil(estremi.max);
+        };
+      }
+    } else {
+      if (cfg.yMin !== null && cfg.yMin !== undefined) yAxis.min = cfg.yMin;
+      if (cfg.yMax !== null && cfg.yMax !== undefined) yAxis.max = cfg.yMax;
+    }
     if (cfg.tickInterval) yAxis.interval = cfg.tickInterval;
     if (cfg.unita) {
       yAxis.name = cfg.unita;
