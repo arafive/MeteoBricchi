@@ -165,7 +165,7 @@
                   src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
                   alt=""
                 />
-                <span>Vertical Integrated Liquid</span>
+                <span>Vertical Int. Liquid</span>
               </button>
               <button type="button" class="bottone-campo" data-campo="fulmini">
                 <img
@@ -293,6 +293,12 @@
         />
         <img
           id="colorbarCampo1"
+          class="colorbar-campo"
+          hidden
+          alt="Scala colori"
+        />
+        <img
+          id="colorbarCampo2"
           class="colorbar-campo"
           hidden
           alt="Scala colori"
@@ -725,11 +731,13 @@
               accendiCampoTemporale("satellite");
           }),
         );
-      // Fino a 2 colorbar mostrabili insieme (una per ciascun campo attivo
-      // che ne ha una, radar/riflettivita; fulmini non ne ha)
+      // Fino a 3 colorbar mostrabili insieme (una per ciascun campo attivo
+      // che ne ha una, radar/riflettivita/vert_int_liq/caldo/freddo; fulmini
+      // e satellite non ne hanno)
       const colorbarEl = [
         document.getElementById("colorbarCampo0"),
         document.getElementById("colorbarCampo1"),
+        document.getElementById("colorbarCampo2"),
       ];
       let colorbarVisibile = false; // toggle del bottone "Colorbar" nel menu'
       const PRECARICA_RADAR = 2; // quanti frame precaricare, prima e dopo quello richiesto
@@ -1723,7 +1731,7 @@
       );
       let serieAttiva = null; // nessuna serie 1D selezionata di default
       let campiAttivi = []; // fino a MAX_CAMPI_ATTIVI campi 2D attivi insieme
-      const MAX_CAMPI_ATTIVI = 2;
+      const MAX_CAMPI_ATTIVI = 3;
 
       // Formatta un Date in stringa locale per <input type="datetime-local">
       // (componenti locali, non UTC), arrotondando i minuti per difetto al

@@ -17,7 +17,6 @@ README.txt
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
     Aggiungi zona limite al radar ai png di VMI.
     Salva in webp invece che png.
-    Aggiungi VIL.
     Aggiungi EPT.
     Aggiungi barra di opacità.
 
@@ -32,6 +31,7 @@ README.txt
 
 Avviare flask in background:
 nohup flask run --host=0.0.0.0 --port=5009 > log/log_web.log 2>&1 &
+nohup flask run --host=0.0.0.0 --port=5010 > log/log_web_casa.log 2>&1 &
 
 ip di questo computer ARPAL: 10.24.50.225 (trovato con >>> hostname -I)
 Link: http://10.24.50.225:5009
