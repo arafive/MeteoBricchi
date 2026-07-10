@@ -31,9 +31,7 @@ for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
     print(f'{cartella_destinazione=}')
     
-    adesso_1_UTC = adesso_0_UTC - pd.Timedelta(hours=1)
-    
-    for t in pd.date_range(adesso_0_UTC - pd.Timedelta(hours=1), adesso_0_UTC):
+    for t in pd.date_range(adesso_0_UTC - pd.Timedelta(hours=1), adesso_0_UTC, freq='5min')[::-1]:
         percorso = f"/mnt/ARC_STORICO/RADAR/ARCHIVIO_RADAR_VIL/{t.strftime(format='%Y/%m/%d')}/VIL{t.strftime(format='%Y%m%d%H%M')}.tif"
 
         if os.path.exists(percorso):

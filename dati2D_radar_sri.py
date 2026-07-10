@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from pyproj import CRS
+from scipy.ndimage import binary_dilation
 from datetime import datetime, timezone
 from rasterio.transform import from_origin
 from rasterio.warp import calculate_default_transform, reproject, Resampling
@@ -19,8 +20,8 @@ dataset = "italian-radar-dpc-sri.zarr"
 dataset_url = f"https://{username}:{access_key}@api.arcodatahub.com/S3/{dataset}"
 ds_tot = xr.open_dataset(dataset_url, engine="zarr")
 
-os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
-# os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
+# os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
+os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
@@ -46,7 +47,7 @@ sovrascrivi = False
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
 # lista_tempi = [adesso_0_UTC]
-lista_tempi = pd.date_range('2026-07-09 10:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+lista_tempi = pd.date_range('2026-07-10 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
@@ -63,15 +64,17 @@ for adesso_0_UTC in lista_tempi:
         break
         
     os.makedirs(cartella_file, exist_ok=True)
-    nome_file_png = f"radar_sri_{tempo_buono.strftime(format='%Y-%m-%d_%H%M')}.png"
-    print(f'{nome_file_png=}')
+    nome_file_webp = f"radar_sri_{tempo_buono.strftime(format='%Y-%m-%d_%H%M')}.webp"
+    print(f'{nome_file_webp=}')
 
-    if os.path.exists(f'{cartella_file}/{nome_file_png}') and not sovrascrivi:
+    if os.path.exists(f'{cartella_file}/{nome_file_webp}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
         continue
     
     da = ds.sel(time=tempo_buono)
     
+    crs_wkt = CRS.from_wkt(da.crs.attrs["crs_wkt"]) # Data a ChatGPT
+
     # %% Plot di controllo
     # import matplotlib.pyplot as plt
     # import matplotlib.colors as mcolors
@@ -232,15 +235,17 @@ for adesso_0_UTC in lista_tempi:
     
     # %%
     
-    crs_wkt = CRS.from_wkt(da.crs.attrs["crs_wkt"]) # Data a ChatGPT
-    
     # !!! Uesto NODATA non ha valore perché nel plot è sempre ignorato
     NODATA = -999  # coerente col formato gia' usato in app.py / index.html
     
     x = da["x"].values  # crescente, metri
     y = da["y"].values  # decrescente, metri (nord -> sud)
     dato = da.RR.values  # (y, x), NaN sui missing
-    
+
+    mask_valid = ~np.isnan(dato)
+    mask_bordo = binary_dilation(mask_valid) & np.isnan(dato)
+    dato[mask_bordo] = -1
+
     res_x = x[1] - x[0] # positivo
     res_y = y[0] - y[1] # positivo (passo assoluto, y decresce)
     
@@ -322,15 +327,23 @@ for adesso_0_UTC in lista_tempi:
     
     mancanti = (banda_3857 == NODATA)
     v = banda_3857 / 10.0
+    # unico caso in cui v puo' essere negativo: la cella sentinella -1 del
+    # bordo, "sporcata" un po' dal resampling bilineare vicino al confine
+    bordo = (~mancanti) & (v < 0)
+
     idx = np.searchsorted(LIVELLI, v, side="right")
     idx = np.clip(idx, 0, len(COLORI_RGB) - 1)
     rgb = COLORI_RGB[idx]
     alpha = np.where(idx == 0, 0, 255).astype(np.uint8)
+
+    rgb[bordo] = (255, 255, 255)  # contorno bianco, come nel plot di controllo
+    alpha[bordo] = 255
     alpha[mancanti] = 0
+
     rgba = np.dstack([rgb, alpha]).astype(np.uint8)
     
-    nome_base = os.path.splitext(nome_file_png)[0]
-    Image.fromarray(rgba, mode="RGBA").save(f"{cartella_file}/{nome_base}.png")
+    nome_base = os.path.splitext(nome_file_webp)[0]
+    Image.fromarray(rgba, mode="RGBA").save(f"{cartella_file}/{nome_base}.webp")
     
     with open(f"{cartella_file}/{nome_base}.json", "w") as f:
         json.dump({
@@ -339,7 +352,7 @@ for adesso_0_UTC in lista_tempi:
                 [float(lat_3857[-1]), float(lon_3857[-1])],
             ],
         }, f)
-    
+    sss
 print('Done\n')
 
 # %%

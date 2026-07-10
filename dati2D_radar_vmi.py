@@ -54,7 +54,7 @@ sovrascrivi = False
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
 # lista_tempi = [adesso_0_UTC]
-lista_tempi = pd.date_range('2026-06-28 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+lista_tempi = pd.date_range('2026-07-10 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")

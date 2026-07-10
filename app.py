@@ -18,8 +18,8 @@ CARTELLA_SERIE = os.path.join(os.path.dirname(__file__), "dati1D")
 CARTELLA_CAMPI = os.path.join(os.path.dirname(__file__), "dati2D")
 # valore: (cartella, estensione dei frame, mimetype da servire)
 CARTELLE_RADAR = {
-    "radar": (os.path.join(CARTELLA_CAMPI, "radar_sri"), "png", "image/png"),
-    "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "png", "image/png"),
+    "radar": (os.path.join(CARTELLA_CAMPI, "radar_sri"), "webp", "image/webp"),
+    "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "webp", "image/webp"),
     "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
     "caldo": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
     "freddo": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
@@ -322,9 +322,9 @@ def radar_immagine(nome, estensione):
     Il nome invece identifica sempre lo stesso file, univocamente.
 
     L'estensione nell'URL deve combaciare con quella configurata per il
-    campo (png per radar/riflettivita/caldo/freddo, webp per
-    vert_int_liq): serve solo a evitare che un campo venga servito con
-    l'estensione sbagliata, non e' liberamente scelta dal client.
+    campo (png per caldo/freddo, webp per radar/riflettivita/vert_int_liq):
+    serve solo a evitare che un campo venga servito con l'estensione
+    sbagliata, non e' liberamente scelta dal client.
     """
     campo = request.args.get("campo", "")
     voce = CARTELLE_RADAR.get(campo)
