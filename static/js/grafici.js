@@ -325,10 +325,10 @@ window.Grafici = (function () {
       const estremi = calcolaEstremiDati(dati);
       if (estremi) {
         yAxis.min = function () {
-          return Math.floor(estremi.min);
+          return Math.floor(estremi.min / 2) * 2; // pari piu' basso <= minimo
         };
         yAxis.max = function () {
-          return Math.ceil(estremi.max);
+          return Math.ceil(estremi.max / 2) * 2; // pari piu' alto >= massimo
         };
       }
     } else {
