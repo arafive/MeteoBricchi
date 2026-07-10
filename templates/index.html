@@ -156,6 +156,17 @@
                 />
                 <span>Riflettività</span>
               </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="vert_int_liq"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
+                  alt=""
+                />
+                <span>Vertical Integrated Liquid</span>
+              </button>
               <button type="button" class="bottone-campo" data-campo="fulmini">
                 <img
                   src="{{ url_for('static', filename='icone/fulmini.svg') }}"
@@ -751,6 +762,13 @@
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_radar_vmi.png') }}",
         },
+        vert_int_liq: {
+          tipo: "immagine",
+          etichetta: "Vertical Integrated Liquid",
+          estensione: "webp",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
+        },
         fulmini: { tipo: "punti", etichetta: "Fulmini" },
         caldo: {
           tipo: "immagine",
@@ -942,13 +960,15 @@
             encodeURIComponent(prodottoSatellite);
         } else if (descr.tipo === "immagine") {
           // Per NOME, non per indice: vedi commento nella route Flask
-          // /immagine/<nome>.png sul perche'.
+          // /immagine/<nome>.<estensione> sul perche'.
           const nomeFrame = listaFrameCampo[campo].nomi[indice];
           voce = new Image();
           voce.src =
             "/immagine/" +
             encodeURIComponent(nomeFrame) +
-            ".png?campo=" +
+            "." +
+            (descr.estensione || "png") +
+            "?campo=" +
             encodeURIComponent(campo);
         } else {
           // Per NOME, non per indice: stesso motivo delle immagini radar,

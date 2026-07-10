@@ -16,11 +16,13 @@ app = Flask(__name__)
 CARTELLA_COORD = os.path.join(os.path.dirname(__file__), "coordinate")
 CARTELLA_SERIE = os.path.join(os.path.dirname(__file__), "dati1D")
 CARTELLA_CAMPI = os.path.join(os.path.dirname(__file__), "dati2D")
+# valore: (cartella, estensione dei frame, mimetype da servire)
 CARTELLE_RADAR = {
-    "radar": os.path.join(CARTELLA_CAMPI, "radar_sri"),
-    "riflettivita": os.path.join(CARTELLA_CAMPI, "radar_vmi"),
-    "caldo": os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"),
-    "freddo": os.path.join(CARTELLA_CAMPI, "windchill2D_obs"),
+    "radar": (os.path.join(CARTELLA_CAMPI, "radar_sri"), "png", "image/png"),
+    "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "png", "image/png"),
+    "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
+    "caldo": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
+    "freddo": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
 }
 CARTELLA_FULMINI = os.path.join(CARTELLA_CAMPI, "fulmini")
 # Prodotti satellite: stessa idea di CARTELLE_RADAR, ma frame in .webp e
@@ -34,7 +36,8 @@ CARTELLE_SATELLITE = {
 # estensione) + i sidecar .dbf/.shx/.prj/.cpg.
 CARTELLA_SHAPEFILE = os.path.join(os.path.dirname(__file__), "shapefile")
 SHAPEFILE_VALIDI = {"aree", "bacini", "comprensori", "comuni", "regioni"}
-_cache_shapefile = {}  # nome -> GeoJSON gia' convertito (i file non cambiano a runtime)
+# nome -> GeoJSON gia' convertito (i file non cambiano a runtime)
+_cache_shapefile = {}
 
 # Colonne del CSV fulmini gia' moltiplicate per 10000 (interi): vanno
 # riportate in unita' reali dividendo per 10000 prima dell'uso.
@@ -46,7 +49,7 @@ NODATA = -999
 # SERIE = dati 1D (serie temporali su stazioni puntuali): sottocartelle di dati1D/
 SERIE_VALIDE = {"vento", "temperatura", "umidita", "pioggia"}
 # CAMPO = dati 2D (griglia lat/lon): sottocartelle di dati2D/ - per ora solo il bottone
-CAMPI_VALIDI = {"radar", "riflettivita", "fulmini"}
+CAMPI_VALIDI = {"radar", "riflettivita", "vert_int_liq", "fulmini"}
 
 
 def trova_frame(cartella, estensione):
@@ -121,13 +124,15 @@ def leggi_shapefile_geojson(nome):
             codifica = f.read().strip() or "utf-8"
 
     try:
-        feature = _costruisci_feature_shapefile(percorso_shp, codifica, trasforma)
+        feature = _costruisci_feature_shapefile(
+            percorso_shp, codifica, trasforma)
     except UnicodeDecodeError:
         # Niente .cpg (o .cpg sbagliato) e non e' UTF-8: probabile shapefile
         # "vecchio stile" (ArcGIS/MapInfo su Windows), quasi sempre
         # Latin-1/CP1252. Latin-1 non solleva mai UnicodeDecodeError (mappa
         # tutti i 256 valori di byte), quindi e' un ripiego sicuro.
-        feature = _costruisci_feature_shapefile(percorso_shp, "latin-1", trasforma)
+        feature = _costruisci_feature_shapefile(
+            percorso_shp, "latin-1", trasforma)
 
     geojson = {"type": "FeatureCollection", "features": feature}
     _cache_shapefile[nome] = geojson
@@ -278,12 +283,13 @@ def serie_stazione(codice):
 def radar_lista():
     """Elenco di tutti i frame + i bounds (identici per tutti, letti una volta
     dal sidecar del primo). Il client sfoglia poi solo cambiando immagine.
-    Parametro query: ?campo=radar|riflettivita (quale cartella di dati2D/)."""
+    Parametro query: ?campo=radar|riflettivita|vert_int_liq|caldo|freddo."""
     campo = request.args.get("campo", "")
-    cartella = CARTELLE_RADAR.get(campo)
-    if cartella is None:
+    voce = CARTELLE_RADAR.get(campo)
+    if voce is None:
         abort(404)
-    frame = trova_frame(cartella, "png")
+    cartella, estensione, _ = voce
+    frame = trova_frame(cartella, estensione)
     if not frame:
         return jsonify({"totale": 0, "bounds": None, "nomi": []})
     bounds = None
@@ -306,25 +312,33 @@ def radar_lista():
 NOME_FRAME_RE = re.compile(r"^[A-Za-z0-9_]+_(\d{4})-(\d{2})-(\d{2})_(\d{4})$")
 
 
-@app.route("/immagine/<nome>.png")
-def radar_immagine(nome):
+@app.route("/immagine/<nome>.<estensione>")
+def radar_immagine(nome, estensione):
     """Serve il frame identificato per NOME (es. "radar_vmi_2026-07-03_1200"),
     non per indice numerico: un indice ha senso solo se riferito alla stessa
     lista con cui e' stato calcolato, ma /radar/lista e questa route
     interrogano la cartella in momenti diversi - se nel frattempo arriva un
     nuovo frame, lo stesso indice puo' finire per indicare un file diverso.
     Il nome invece identifica sempre lo stesso file, univocamente.
+
+    L'estensione nell'URL deve combaciare con quella configurata per il
+    campo (png per radar/riflettivita/caldo/freddo, webp per
+    vert_int_liq): serve solo a evitare che un campo venga servito con
+    l'estensione sbagliata, non e' liberamente scelta dal client.
     """
     campo = request.args.get("campo", "")
-    cartella = CARTELLE_RADAR.get(campo)
-    if cartella is None:
+    voce = CARTELLE_RADAR.get(campo)
+    if voce is None:
+        abort(404)
+    cartella, estensione_attesa, mimetype = voce
+    if estensione != estensione_attesa:
         abort(404)
     if not NOME_FRAME_RE.match(nome):
         abort(404)
-    percorso = trova_per_nome(cartella, nome, "png")
+    percorso = trova_per_nome(cartella, nome, estensione)
     if percorso is None:
         abort(404)
-    risposta = send_file(percorso, mimetype="image/png")
+    risposta = send_file(percorso, mimetype=mimetype)
     risposta.headers["Cache-Control"] = "public, max-age=86400"
     return risposta
 

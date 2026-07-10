@@ -13,10 +13,13 @@ README.txt
     Gestione osservati nei plot 1D -> Run ogni ora.
     Aggiungi frecce direzione del vento.
 
---- Grafici 2D    
+--- Grafici 2D
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
     Aggiungi zona limite al radar ai png di VMI.
     Salva in webp invece che png.
+    Aggiungi VIL.
+    Aggiungi EPT.
+    Aggiungi barra di opacità.
 
 --- Altro
     Logo meteobricchi.
@@ -28,7 +31,7 @@ README.txt
 ###########
 
 Avviare flask in background:
-nohup flask run --host=0.0.0.0 --port=5009 > log_web.log 2>&1 &
+nohup flask run --host=0.0.0.0 --port=5009 > log/log_web.log 2>&1 &
 
 ip di questo computer ARPAL: 10.24.50.225 (trovato con >>> hostname -I)
 Link: http://10.24.50.225:5009
