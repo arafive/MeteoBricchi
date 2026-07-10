@@ -284,25 +284,28 @@
         </label>
       </div>
 
-      <div id="colorbarContenitore" class="colorbar-contenitore">
-        <img
-          id="colorbarCampo0"
-          class="colorbar-campo"
-          hidden
-          alt="Scala colori"
-        />
-        <img
-          id="colorbarCampo1"
-          class="colorbar-campo"
-          hidden
-          alt="Scala colori"
-        />
-        <img
-          id="colorbarCampo2"
-          class="colorbar-campo"
-          hidden
-          alt="Scala colori"
-        />
+      <div class="controlli-campo-attivo">
+        <div id="controlliOpacita" class="controlli-opacita"></div>
+        <div id="colorbarContenitore" class="colorbar-contenitore">
+          <img
+            id="colorbarCampo0"
+            class="colorbar-campo"
+            hidden
+            alt="Scala colori"
+          />
+          <img
+            id="colorbarCampo1"
+            class="colorbar-campo"
+            hidden
+            alt="Scala colori"
+          />
+          <img
+            id="colorbarCampo2"
+            class="colorbar-campo"
+            hidden
+            alt="Scala colori"
+          />
+        </div>
       </div>
     </div>
 
@@ -750,6 +753,7 @@
       const livelliCampo = {}; // campo -> layer Leaflet attuale (o null)
       const cachePrecaricamento = {}; // campo -> Map(indice proprio -> Image/Promise)
       const richiestaCampo = {}; // campo -> token progressivo (anti race condition)
+      const opacitaCampo = {}; // campo -> opacita' attuale (0-1) dell'overlay, impostata alla prima accensione
 
       // Navigazione temporale condivisa: un'unica sequenza di istanti,
       // unione dei frame di tutti i campi attivi. Le frecce/i pulsanti
@@ -998,6 +1002,12 @@
         ottieniFrameCampo(campo, indice);
       }
 
+      // Opacita' di default alla prima accensione di un campo (poi
+      // regolabile dal cursore); il satellite parte piu' opaco degli altri.
+      function opacitaPredefinita(campo) {
+        return campo === "satellite" ? 0.95 : 0.75;
+      }
+
       // Mostra un campo attivo all'istante condiviso: trova il frame proprio
       // di quel campo piu' vicino e lo disegna sulla mappa.
       function mostraFrameCampo(campo, istanteMs) {
@@ -1022,7 +1032,7 @@
             if (mioToken !== richiestaCampo[campo]) return;
             if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
             livelliCampo[campo] = L.imageOverlay(frame.src, lista.bounds, {
-              opacity: campo === "satellite" ? 0.95 : 0.75,
+              opacity: opacitaCampo[campo] ?? opacitaPredefinita(campo),
               interactive: false,
               // Idee per interazioni:
               // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
@@ -1109,6 +1119,77 @@
         });
       }
 
+      const controlliOpacitaEl = document.getElementById("controlliOpacita");
+
+      // Posiziona la bolla del valore sopra il pallino del cursore
+      // (approssimando la larghezza nativa del thumb, ~14px). Il cursore e'
+      // un fratello della bolla dentro ".opacita-campo" (che fa da
+      // offsetParent per entrambi): serve quindi sommare anche
+      // cursore.offsetLeft, non solo la posizione del pallino dentro il
+      // cursore stesso, altrimenti la bolla ignora lo spazio occupato
+      // dall'etichetta a sinistra dello slider.
+      function posizionaBollaOpacita(cursore, bolla) {
+        const min = parseFloat(cursore.min);
+        const max = parseFloat(cursore.max);
+        const percento = (parseFloat(cursore.value) - min) / (max - min);
+        const larghezzaThumb = 14;
+        const xDentroCursore =
+          larghezzaThumb / 2 +
+          percento * (cursore.offsetWidth - larghezzaThumb);
+        bolla.style.left = cursore.offsetLeft + xDentroCursore + "px";
+        bolla.textContent = Math.round(cursore.value * 100) + "%";
+      }
+
+      function aggiornaControlliOpacita() {
+        const campiConOpacita = campiAttivi.filter(
+          (c) =>
+            DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].tipo === "immagine",
+        );
+
+        controlliOpacitaEl.innerHTML = "";
+        campiConOpacita.forEach((campo) => {
+          if (!(campo in opacitaCampo)) {
+            opacitaCampo[campo] = opacitaPredefinita(campo);
+          }
+
+          const riga = document.createElement("div");
+          riga.className = "opacita-campo";
+
+          const etichetta = document.createElement("span");
+          etichetta.className = "opacita-etichetta";
+          etichetta.textContent = DESCRITTORI_CAMPO[campo].etichetta;
+
+          const cursore = document.createElement("input");
+          cursore.type = "range";
+          cursore.min = "0";
+          cursore.max = "1";
+          cursore.step = "0.05";
+          cursore.value = opacitaCampo[campo];
+
+          const bolla = document.createElement("span");
+          bolla.className = "opacita-valore";
+
+          const mostraBolla = () => {
+            posizionaBollaOpacita(cursore, bolla);
+            bolla.classList.add("visibile");
+          };
+          const nascondiBolla = () => bolla.classList.remove("visibile");
+
+          cursore.addEventListener("input", () => {
+            opacitaCampo[campo] = parseFloat(cursore.value);
+            if (livelliCampo[campo]) {
+              livelliCampo[campo].setOpacity(opacitaCampo[campo]);
+            }
+            mostraBolla();
+          });
+          cursore.addEventListener("pointerdown", mostraBolla);
+          cursore.addEventListener("pointerup", nascondiBolla);
+          cursore.addEventListener("blur", nascondiBolla);
+
+          riga.append(etichetta, cursore, bolla);
+          controlliOpacitaEl.appendChild(riga);
+        });
+      }
       // Istante attualmente mostrato (se c'e'), altrimenti il valore di
       // "Data": usato come bersaglio quando si accende/spegne un campo o si
       // cambia manualmente la data, per restare il piu' possibile fermi sul
@@ -1960,6 +2041,7 @@
           b.classList.toggle("attivo", campiAttivi.includes(b.dataset.campo)),
         );
         aggiornaColorbar();
+        aggiornaControlliOpacita();
 
         // Il bottone Animazione ha senso solo con almeno un campo temporale
         // attivo (radar/riflettivita/fulmini); per le stazioni non si applica.

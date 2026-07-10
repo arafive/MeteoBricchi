@@ -435,12 +435,78 @@ body {
   display: none;
 }
 
-.colorbar-contenitore {
+.controlli-campo-attivo {
   position: absolute;
   bottom: 18px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.controlli-opacita {
+  display: flex;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.opacita-campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(31, 41, 51, 0.9);
+  color: #e4e7eb;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font: 12px system-ui;
+  pointer-events: auto;
+}
+
+.opacita-campo .opacita-etichetta {
+  white-space: nowrap;
+}
+
+.opacita-campo input[type="range"] {
+  width: 110px;
+  cursor: pointer;
+}
+
+.opacita-valore {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  transform: translateX(-50%);
+  background: #1f2933;
+  color: #e4e7eb;
+  font: 600 11px system-ui;
+  padding: 3px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.opacita-valore::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1f2933;
+}
+
+.opacita-valore.visibile {
+  opacity: 1;
+}
+
+.colorbar-contenitore {
   display: flex;
   gap: 10px;
   align-items: flex-end;
