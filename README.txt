@@ -16,7 +16,6 @@ README.txt
 --- Grafici 2D
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
     Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
-    Aggiungi barra di opacità.
     Aggiungi IRENE.
     Aggiungi previsione dell'Heat Index dai campi interpolati di QRF Tmean e QRF RH.
 

@@ -19,7 +19,7 @@ body {
 /* Menù a sinistra */
 #menu {
   flex: 0 0 auto;
-  width: 260px;
+  width: 300px;
   min-width: 180px;
   background: #1f2933;
   color: #e4e7eb;
@@ -317,21 +317,22 @@ body {
 /* --- Bottoni di SERIE (1D) e CAMPO (2D): stessa veste grafica --- */
 #menu .bottoni-serie,
 #menu .bottoni-campo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 #menu .bottone-serie,
 #menu .bottone-campo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
+  min-width: 0; /* permette al testo interno di restringersi/andare a capo */
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 8px 6px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   color: #e4e7eb;
   background: #323f4b;
   border: 1px solid #3e4c59;
@@ -340,10 +341,16 @@ body {
   text-align: left;
 }
 
+#menu .bottone-serie span,
+#menu .bottone-campo span {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
 #menu .bottone-serie img,
 #menu .bottone-campo img {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none; /* l'icona non si comprime */
 }
 
@@ -448,12 +455,6 @@ body {
   pointer-events: none;
 }
 
-.controlli-opacita {
-  display: flex;
-  gap: 14px;
-  pointer-events: none;
-}
-
 .opacita-campo {
   position: relative;
   display: flex;
@@ -467,10 +468,6 @@ body {
   pointer-events: auto;
 }
 
-.opacita-campo .opacita-etichetta {
-  white-space: nowrap;
-}
-
 .opacita-campo input[type="range"] {
   width: 110px;
   cursor: pointer;
@@ -478,8 +475,8 @@ body {
 
 .opacita-valore {
   position: absolute;
-  bottom: 100%;
-  margin-bottom: 8px;
+  top: 100%;
+  margin-top: 8px;
   transform: translateX(-50%);
   background: #1f2933;
   color: #e4e7eb;
@@ -495,11 +492,11 @@ body {
 .opacita-valore::after {
   content: "";
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: #1f2933;
+  border-bottom-color: #1f2933;
 }
 
 .opacita-valore.visibile {
@@ -546,6 +543,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 6px;
   line-height: 1.3;
 }
 
@@ -570,7 +568,7 @@ body {
 .linguetta-menu {
   position: absolute;
   top: 24px;
-  left: 260px;
+  left: 300px;
   z-index: 1600;
   width: 20px;
   height: 48px;
@@ -653,35 +651,49 @@ body {
 .separatore-menu {
   border: none;
   border-top: 1px solid #3e4c59;
-  margin: 20px 0 0;
+  margin: 20px 0;
+}
+
+#menu .bottoni-azione {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 #menu .bottone-azione {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 8px 6px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   color: #e4e7eb;
   background: #323f4b;
   border: 1px solid #3e4c59;
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
-  margin-top: 6px;
+}
+
+#menu .bottone-azione span {
+  flex: 1 1 auto;
+  white-space: nowrap;
 }
 
 #menu .bottone-azione img {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
 }
 
 #menu .bottone-azione .icona-a-destra {
+  width: 14px;
+  height: 14px;
   margin-left: auto;
+  flex: none;
 }
 
 #menu .bottone-azione:hover {

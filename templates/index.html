@@ -165,7 +165,7 @@
                   src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
                   alt=""
                 />
-                <span>Vertical Int. Liquid</span>
+                <span>VIL</span>
               </button>
               <button type="button" class="bottone-campo" data-campo="fulmini">
                 <img
@@ -211,46 +211,48 @@
 
           <hr class="separatore-menu" />
 
-          <button
-            type="button"
-            class="bottone-azione"
-            id="bottoneAnimazione"
-            disabled
-          >
-            <img
-              src="{{ url_for('static', filename='icone/animazione.svg') }}"
-              alt=""
-            />
-            <span>Animazione</span>
-            <img
-              id="bottoneAnimazioneIcona"
-              src="{{ url_for('static', filename='icone/play.svg') }}"
-              alt=""
-              class="icona-a-destra"
-            />
-          </button>
+          <div class="bottoni-azione">
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneAnimazione"
+              disabled
+            >
+              <img
+                src="{{ url_for('static', filename='icone/animazione.svg') }}"
+                alt=""
+              />
+              <span>Animazione</span>
+              <img
+                id="bottoneAnimazioneIcona"
+                src="{{ url_for('static', filename='icone/play.svg') }}"
+                alt=""
+                class="icona-a-destra"
+              />
+            </button>
 
-          <button type="button" class="bottone-azione" id="bottoneColorbar">
-            <img
-              src="{{ url_for('static', filename='icone/colorbar.svg') }}"
-              alt=""
-            />
-            <span>Colorbar</span>
-            <img
-              id="bottoneColorbarIcona"
-              src="{{ url_for('static', filename='icone/off.svg') }}"
-              alt=""
-              class="icona-a-destra"
-            />
-          </button>
+            <button type="button" class="bottone-azione" id="bottoneColorbar">
+              <img
+                src="{{ url_for('static', filename='icone/colorbar.svg') }}"
+                alt=""
+              />
+              <span>Colorbar</span>
+              <img
+                id="bottoneColorbarIcona"
+                src="{{ url_for('static', filename='icone/off.svg') }}"
+                alt=""
+                class="icona-a-destra"
+              />
+            </button>
 
-          <button type="button" class="bottone-azione" id="bottoneLayer">
-            <img
-              src="{{ url_for('static', filename='icone/layer.svg') }}"
-              alt=""
-            />
-            <span>Layer</span>
-          </button>
+            <button type="button" class="bottone-azione" id="bottoneLayer">
+              <img
+                src="{{ url_for('static', filename='icone/layer.svg') }}"
+                alt=""
+              />
+              <span>Layer</span>
+            </button>
+          </div>
         </div>
         <div class="firma">
           Arts by Daniele
@@ -285,7 +287,6 @@
       </div>
 
       <div class="controlli-campo-attivo">
-        <div id="controlliOpacita" class="controlli-opacita"></div>
         <div id="colorbarContenitore" class="colorbar-contenitore">
           <img
             id="colorbarCampo0"
@@ -867,39 +868,48 @@
       function aggiornaEtichetteRadar(istanteCondiviso) {
         const campiTemporali = campiAttivi.filter((c) => DESCRITTORI_CAMPO[c]);
 
-        if (campiTemporali.length <= 1) {
-          const prefisso = campiTemporali.length
-            ? DESCRITTORI_CAMPO[campiTemporali[0]].etichetta + " - "
-            : "";
-          radarEtichette.classList.remove("a-colonne");
-          radarEtichette.textContent =
-            prefisso + formattaIstante(istanteCondiviso);
-          return;
-        }
-
         radarEtichette.classList.add("a-colonne");
-        radarEtichette.innerHTML = "";
+
+        radarEtichette.querySelectorAll(".radar-colonna").forEach((el) => {
+          if (!campiTemporali.includes(el.dataset.campo)) el.remove();
+        });
+
         campiTemporali.forEach((campo) => {
           const indice = indiceFrameCampoVicino(campo, istanteCondiviso);
           const nomeFrame =
             indice >= 0 ? listaFrameCampo[campo].nomi[indice] : null;
           const istanteProprio = nomeFrame ? parseIstante(nomeFrame) : null;
-
-          const colonna = document.createElement("div");
-          colonna.className = "radar-colonna";
-
-          const nome = document.createElement("div");
-          nome.className = "radar-colonna-nome";
-          nome.textContent = DESCRITTORI_CAMPO[campo].etichetta;
-
-          const istanteEl = document.createElement("div");
-          istanteEl.className = "radar-colonna-istante";
-          istanteEl.textContent = formattaIstante(
+          const testoIstante = formattaIstante(
             istanteProprio !== null ? istanteProprio : istanteCondiviso,
           );
 
-          colonna.append(nome, istanteEl);
-          radarEtichette.appendChild(colonna);
+          let colonna = radarEtichette.querySelector(
+            '.radar-colonna[data-campo="' + campo + '"]',
+          );
+
+          if (!colonna) {
+            colonna = document.createElement("div");
+            colonna.className = "radar-colonna";
+            colonna.dataset.campo = campo;
+
+            const nome = document.createElement("div");
+            nome.className = "radar-colonna-nome";
+            nome.textContent = DESCRITTORI_CAMPO[campo].etichetta;
+
+            const istanteEl = document.createElement("div");
+            istanteEl.className = "radar-colonna-istante";
+
+            colonna.append(nome, istanteEl);
+
+            if (DESCRITTORI_CAMPO[campo].tipo === "immagine") {
+              colonna.appendChild(creaControlloOpacita(campo));
+            }
+
+            radarEtichette.appendChild(colonna);
+          }
+
+          colonna.querySelector(".radar-colonna-istante").textContent =
+            testoIstante;
         });
       }
 
@@ -1119,15 +1129,12 @@
         });
       }
 
-      const controlliOpacitaEl = document.getElementById("controlliOpacita");
-
       // Posiziona la bolla del valore sopra il pallino del cursore
-      // (approssimando la larghezza nativa del thumb, ~14px). Il cursore e'
+      // (approssimando la larghezza nativa del thumb, ~14px): il cursore e'
       // un fratello della bolla dentro ".opacita-campo" (che fa da
-      // offsetParent per entrambi): serve quindi sommare anche
-      // cursore.offsetLeft, non solo la posizione del pallino dentro il
-      // cursore stesso, altrimenti la bolla ignora lo spazio occupato
-      // dall'etichetta a sinistra dello slider.
+      // offsetParent per entrambi), quindi serve sommare anche
+      // cursore.offsetLeft alla posizione del pallino dentro il cursore
+      // stesso.
       function posizionaBollaOpacita(cursore, bolla) {
         const min = parseFloat(cursore.min);
         const max = parseFloat(cursore.max);
@@ -1140,55 +1147,46 @@
         bolla.textContent = Math.round(cursore.value * 100) + "%";
       }
 
-      function aggiornaControlliOpacita() {
-        const campiConOpacita = campiAttivi.filter(
-          (c) =>
-            DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].tipo === "immagine",
-        );
+      // Crea la riga con lo slider di opacita' di un campo, da inserire
+      // sotto nome e istante dentro la sua ".radar-colonna" (il nome e'
+      // gia' mostrato sopra, quindi qui c'e' solo il cursore).
+      function creaControlloOpacita(campo) {
+        if (!(campo in opacitaCampo)) {
+          opacitaCampo[campo] = opacitaPredefinita(campo);
+        }
 
-        controlliOpacitaEl.innerHTML = "";
-        campiConOpacita.forEach((campo) => {
-          if (!(campo in opacitaCampo)) {
-            opacitaCampo[campo] = opacitaPredefinita(campo);
+        const riga = document.createElement("div");
+        riga.className = "opacita-campo";
+
+        const cursore = document.createElement("input");
+        cursore.type = "range";
+        cursore.min = "0";
+        cursore.max = "1";
+        cursore.step = "0.05";
+        cursore.value = opacitaCampo[campo];
+
+        const bolla = document.createElement("span");
+        bolla.className = "opacita-valore";
+
+        const mostraBolla = () => {
+          posizionaBollaOpacita(cursore, bolla);
+          bolla.classList.add("visibile");
+        };
+        const nascondiBolla = () => bolla.classList.remove("visibile");
+
+        cursore.addEventListener("input", () => {
+          opacitaCampo[campo] = parseFloat(cursore.value);
+          if (livelliCampo[campo]) {
+            livelliCampo[campo].setOpacity(opacitaCampo[campo]);
           }
-
-          const riga = document.createElement("div");
-          riga.className = "opacita-campo";
-
-          const etichetta = document.createElement("span");
-          etichetta.className = "opacita-etichetta";
-          etichetta.textContent = DESCRITTORI_CAMPO[campo].etichetta;
-
-          const cursore = document.createElement("input");
-          cursore.type = "range";
-          cursore.min = "0";
-          cursore.max = "1";
-          cursore.step = "0.05";
-          cursore.value = opacitaCampo[campo];
-
-          const bolla = document.createElement("span");
-          bolla.className = "opacita-valore";
-
-          const mostraBolla = () => {
-            posizionaBollaOpacita(cursore, bolla);
-            bolla.classList.add("visibile");
-          };
-          const nascondiBolla = () => bolla.classList.remove("visibile");
-
-          cursore.addEventListener("input", () => {
-            opacitaCampo[campo] = parseFloat(cursore.value);
-            if (livelliCampo[campo]) {
-              livelliCampo[campo].setOpacity(opacitaCampo[campo]);
-            }
-            mostraBolla();
-          });
-          cursore.addEventListener("pointerdown", mostraBolla);
-          cursore.addEventListener("pointerup", nascondiBolla);
-          cursore.addEventListener("blur", nascondiBolla);
-
-          riga.append(etichetta, cursore, bolla);
-          controlliOpacitaEl.appendChild(riga);
+          mostraBolla();
         });
+        cursore.addEventListener("pointerdown", mostraBolla);
+        cursore.addEventListener("pointerup", nascondiBolla);
+        cursore.addEventListener("blur", nascondiBolla);
+
+        riga.append(cursore, bolla);
+        return riga;
       }
       // Istante attualmente mostrato (se c'e'), altrimenti il valore di
       // "Data": usato come bersaglio quando si accende/spegne un campo o si
@@ -2041,7 +2039,6 @@
           b.classList.toggle("attivo", campiAttivi.includes(b.dataset.campo)),
         );
         aggiornaColorbar();
-        aggiornaControlliOpacita();
 
         // Il bottone Animazione ha senso solo con almeno un campo temporale
         // attivo (radar/riflettivita/fulmini); per le stazioni non si applica.
