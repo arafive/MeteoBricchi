@@ -99,37 +99,53 @@
           <div class="gruppo">
             <label>Stazioni</label>
             <div class="bottoni-serie">
-              <button type="button" class="bottone-serie" data-serie="vento">
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="vento"
+                title="Vento"
+                aria-label="Vento"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/vento.svg') }}"
                   alt=""
                 />
-                <span>Vento</span>
               </button>
               <button
                 type="button"
                 class="bottone-serie"
                 data-serie="temperatura"
+                title="Temperatura"
+                aria-label="Temperatura"
               >
                 <img
                   src="{{ url_for('static', filename='icone/temperatura.svg') }}"
                   alt=""
                 />
-                <span>Temperatura</span>
               </button>
-              <button type="button" class="bottone-serie" data-serie="umidita">
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="umidita"
+                title="Umidità"
+                aria-label="Umidità"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/umidita.svg') }}"
                   alt=""
                 />
-                <span>Umidità</span>
               </button>
-              <button type="button" class="bottone-serie" data-serie="pioggia">
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="pioggia"
+                title="Pioggia"
+                aria-label="Pioggia"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/pioggia.svg') }}"
                   alt=""
                 />
-                <span>Pioggia</span>
               </button>
             </div>
           </div>
@@ -138,73 +154,101 @@
           <div class="gruppo">
             <label>Campi</label>
             <div class="bottoni-campo">
-              <button type="button" class="bottone-campo" data-campo="radar">
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="radar"
+                title="Radar"
+                aria-label="Radar"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/radar_3.svg') }}"
                   alt=""
                 />
-                <span>Radar</span>
               </button>
               <button
                 type="button"
                 class="bottone-campo"
                 data-campo="riflettivita"
+                title="Riflettività"
+                aria-label="Riflettività"
               >
                 <img
                   src="{{ url_for('static', filename='icone/riflettivita.svg') }}"
                   alt=""
                 />
-                <span>Riflettività</span>
               </button>
               <button
                 type="button"
                 class="bottone-campo"
                 data-campo="vert_int_liq"
+                title="VIL"
+                aria-label="VIL"
               >
                 <img
                   src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
                   alt=""
                 />
-                <span>VIL</span>
               </button>
-              <button type="button" class="bottone-campo" data-campo="fulmini">
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="fulmini"
+                title="Fulmini"
+                aria-label="Fulmini"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/fulmini.svg') }}"
                   alt=""
                 />
-                <span>Fulmini</span>
               </button>
               <button
                 type="button"
                 class="bottone-campo"
                 data-campo="satellite"
+                title="Satellite"
+                aria-label="Satellite"
               >
                 <img
                   src="{{ url_for('static', filename='icone/satellite_1.svg') }}"
                   alt=""
                 />
-                <span>Satellite</span>
               </button>
-              <button type="button" class="bottone-campo" data-campo="irene">
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="irene"
+                title="IRENE"
+                aria-label="IRENE"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/irene.svg') }}"
                   alt=""
                 />
-                <span>IRENE</span>
               </button>
-              <button type="button" class="bottone-campo" data-campo="caldo">
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="caldo"
+                title="Heat Index"
+                aria-label="Heat Index"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/caldo.svg') }}"
                   alt=""
                 />
-                <span>Heat Index</span>
               </button>
-              <button type="button" class="bottone-campo" data-campo="freddo">
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="freddo"
+                title="Wind Chill"
+                aria-label="Wind Chill"
+              >
                 <img
                   src="{{ url_for('static', filename='icone/freddo.svg') }}"
                   alt=""
                 />
-                <span>Wind Chill</span>
               </button>
             </div>
           </div>
@@ -216,13 +260,14 @@
               type="button"
               class="bottone-azione"
               id="bottoneAnimazione"
+              title="Animazione"
+              aria-label="Animazione"
               disabled
             >
               <img
                 src="{{ url_for('static', filename='icone/animazione.svg') }}"
                 alt=""
               />
-              <span>Animazione</span>
               <img
                 id="bottoneAnimazioneIcona"
                 src="{{ url_for('static', filename='icone/play.svg') }}"
@@ -231,12 +276,17 @@
               />
             </button>
 
-            <button type="button" class="bottone-azione" id="bottoneColorbar">
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneColorbar"
+              title="Colorbar"
+              aria-label="Colorbar"
+            >
               <img
                 src="{{ url_for('static', filename='icone/colorbar.svg') }}"
                 alt=""
               />
-              <span>Colorbar</span>
               <img
                 id="bottoneColorbarIcona"
                 src="{{ url_for('static', filename='icone/off.svg') }}"
@@ -245,12 +295,17 @@
               />
             </button>
 
-            <button type="button" class="bottone-azione" id="bottoneLayer">
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneLayer"
+              title="Layer"
+              aria-label="Layer"
+            >
               <img
                 src="{{ url_for('static', filename='icone/layer.svg') }}"
                 alt=""
               />
-              <span>Layer</span>
             </button>
           </div>
         </div>
@@ -1967,6 +2022,22 @@
           serie: serieAttiva,
         };
       }
+
+      // --- Larghezza del menù = larghezza del titolo (poco piu') ---
+      function impostaLarghezzaMenu() {
+        const titolo = document.querySelector("#menu h1");
+        const paddingLaterale = 32; // 16px a sinistra + 16px a destra di #menu
+        const margine = 16; // "poco piu'" del titolo
+        const larghezza =
+          Math.ceil(titolo.scrollWidth) + paddingLaterale + margine;
+        document.documentElement.style.setProperty(
+          "--larghezza-menu",
+          larghezza + "px",
+        );
+      }
+      (document.fonts ? document.fonts.ready : Promise.resolve()).then(
+        impostaLarghezzaMenu,
+      );
 
       // --- Collasso del menù laterale ---
       const linguettaMenu = document.getElementById("linguettaMenu");

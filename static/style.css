@@ -19,7 +19,7 @@ body {
 /* Menù a sinistra */
 #menu {
   flex: 0 0 auto;
-  width: 300px;
+  width: var(--larghezza-menu, 260px);
   min-width: 180px;
   background: #1f2933;
   color: #e4e7eb;
@@ -66,7 +66,9 @@ body {
 #menu h1 {
   font-size: 27px;
   font-weight: 600;
-  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
   text-align: center;
   overflow-wrap: break-word;
   font-family: "Pacifico", Arial, sans-serif;
@@ -318,7 +320,7 @@ body {
 #menu .bottoni-serie,
 #menu .bottoni-campo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 8px;
 }
 
@@ -326,32 +328,21 @@ body {
 #menu .bottone-campo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   width: 100%;
-  min-width: 0; /* permette al testo interno di restringersi/andare a capo */
+  aspect-ratio: 1 / 1;
   box-sizing: border-box;
-  padding: 8px 6px;
-  font: inherit;
-  font-size: 13px;
-  color: #e4e7eb;
+  padding: 0;
   background: #323f4b;
   border: 1px solid #3e4c59;
   border-radius: 6px;
   cursor: pointer;
-  text-align: left;
-}
-
-#menu .bottone-serie span,
-#menu .bottone-campo span {
-  flex: 1 1 auto;
-  white-space: nowrap;
 }
 
 #menu .bottone-serie img,
 #menu .bottone-campo img {
-  width: 18px;
-  height: 18px;
-  flex: none; /* l'icona non si comprime */
+  width: 26px;
+  height: 26px;
 }
 
 #menu .bottone-serie:hover,
@@ -568,7 +559,7 @@ body {
 .linguetta-menu {
   position: absolute;
   top: 24px;
-  left: 300px;
+  left: var(--larghezza-menu, 260px);
   z-index: 1600;
   width: 20px;
   height: 48px;
@@ -656,44 +647,36 @@ body {
 
 #menu .bottoni-azione {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 8px;
 }
 
 #menu .bottone-azione {
+  position: relative; /* ancora per il badge in basso a destra */
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   width: 100%;
-  min-width: 0;
+  aspect-ratio: 1 / 1;
   box-sizing: border-box;
-  padding: 8px 6px;
-  font: inherit;
-  font-size: 13px;
-  color: #e4e7eb;
+  padding: 0;
   background: #323f4b;
   border: 1px solid #3e4c59;
   border-radius: 6px;
   cursor: pointer;
-  text-align: left;
-}
-
-#menu .bottone-azione span {
-  flex: 1 1 auto;
-  white-space: nowrap;
 }
 
 #menu .bottone-azione img {
-  width: 18px;
-  height: 18px;
-  flex: none;
+  width: 26px;
+  height: 26px;
 }
 
 #menu .bottone-azione .icona-a-destra {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
   width: 14px;
   height: 14px;
-  margin-left: auto;
-  flex: none;
 }
 
 #menu .bottone-azione:hover {

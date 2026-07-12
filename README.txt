@@ -12,6 +12,7 @@ README.txt
     Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
     Gestione osservati nei plot 1D -> Run ogni ora.
     Aggiungi frecce direzione del vento.
+    Apri il plot a pop up con CTRL e il mouse sopra il pallino.
 
 --- Grafici 2D
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
