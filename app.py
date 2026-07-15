@@ -15,6 +15,32 @@ app = Flask(__name__)
 # Cartelle
 CARTELLA_COORD = os.path.join(os.path.dirname(__file__), "coordinate")
 CARTELLA_SERIE = os.path.join(os.path.dirname(__file__), "dati1D")
+# Osservati (dati veri, non di un modello): MeteoBricchi/../QRF/osservati/<codice>.csv
+# DOPO
+CARTELLA_OSSERVATI = os.path.join(
+    os.path.dirname(__file__), "..", "QRF", "osservati"
+)
+# Il CSV di QRF/osservati/<codice>.csv contiene TUTTE le variabili osservate
+# insieme: per ogni serie si prendono solo le colonne elencate qui (nome
+# colonna nel CSV -> nome da mostrare nel grafico). Una colonna assente nel
+# file per quella stazione viene semplicemente saltata (non sono sempre
+# tutte presenti, es. puo' mancare TEMPX).
+# vento e umidita sono segnaposto: sostituisci "VENTOM"/"RAFFICAM"/"UMIDM"
+# con i nomi reali delle colonne quando li conosci.
+COLONNE_OSSERVATI_PER_SERIE = {
+    "temperatura": {
+        "TEMPM": "Obs media",
+        "TEMPN": "Obs minima",
+        "TEMPX": "Obs massima",
+    },
+    "vento": {
+        "WSPDM": "Obs vento",
+        "WSPDX": "Obs raffica",
+    },
+    "umidita": {
+        "REHUM": "Obs media",
+    },
+}
 CARTELLA_CAMPI = os.path.join(os.path.dirname(__file__), "dati2D")
 # valore: (cartella, estensione dei frame, mimetype da servire)
 CARTELLE_RADAR = {
@@ -162,13 +188,19 @@ def _costruisci_feature_shapefile(percorso_shp, codifica, trasforma):
         return feature
 
 
-def percorso_serie_stazione(serie, codice, d):
+# Per ora c'e' un solo modello di allenamento; in futuro ce ne saranno altri,
+# selezionabili dal plot (come Geocolour/Sandwich per il satellite).
+MODELLI_SERIE_VALIDI = {"ecita"}
+MODELLO_SERIE_PREDEFINITO = "ecita"
+
+
+def percorso_serie_stazione(serie, codice, d, modello=MODELLO_SERIE_PREDEFINITO):
     """Percorso del CSV di una SERIE 1D per una stazione e una data:
-    dati1D/<serie>/YYYY/mm/dd/<codice>/<codice>.csv"""
+    dati1D/<serie>/<modello>/YYYY/mm/dd/<codice>.csv"""
     return os.path.join(
-        CARTELLA_SERIE, serie,
+        CARTELLA_SERIE, serie, modello,
         f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}",
-        codice, f"{codice}.csv",
+        f"{codice}.csv",
     )
 
 
@@ -220,6 +252,10 @@ def stazioni():
     if serie not in SERIE_VALIDE:
         abort(404)
 
+    modello = request.args.get("modello", MODELLO_SERIE_PREDEFINITO)
+    if modello not in MODELLI_SERIE_VALIDI:
+        abort(404)
+
     try:
         d = datetime.date.fromisoformat(request.args.get("data", ""))
     except ValueError:
@@ -228,7 +264,7 @@ def stazioni():
     elenco = leggi_stazioni(serie)
     for s in elenco:
         s["disponibile"] = d is not None and os.path.exists(
-            percorso_serie_stazione(serie, s["codice"], d))
+            percorso_serie_stazione(serie, s["codice"], d, modello))
     return jsonify(elenco)
 
 
@@ -236,9 +272,9 @@ def stazioni():
 def serie_stazione(codice):
     """Serie temporale (dato 1D) di una stazione, per una serie e una data.
 
-    Percorso atteso: dati1D/<serie>/YYYY/mm/dd/<codice>/<codice>.csv
-    Parametri query: ?serie=vento|temperatura&data=YYYY-MM-DD
-    Converte i -999 in NaN (-> null) e divide i valori per 10.
+    Percorso atteso: dati1D/<serie>/<modello>/YYYY/mm/dd/<codice>.csv
+    Parametri query: ?serie=vento|temperatura&data=YYYY-MM-DD&modello=ecita
+    Converte i -999 in NaN (-> null).
     Risponde 404 se il file per quella combinazione non esiste.
     """
     # Difesa contro path traversal: accetto solo codici alfanumerici
@@ -250,6 +286,11 @@ def serie_stazione(codice):
     if serie not in SERIE_VALIDE:
         abort(404)
 
+    # Modello di allenamento: per ora solo "ecita", in futuro selezionabile
+    modello = request.args.get("modello", MODELLO_SERIE_PREDEFINITO)
+    if modello not in MODELLI_SERIE_VALIDI:
+        abort(404)
+
     # Data: deve essere una data valida in formato ISO YYYY-MM-DD
     try:
         d = datetime.date.fromisoformat(request.args.get("data", ""))
@@ -257,7 +298,7 @@ def serie_stazione(codice):
         abort(404)
 
     # Componenti tutti validati, niente traversal
-    percorso = percorso_serie_stazione(serie, codice, d)
+    percorso = percorso_serie_stazione(serie, codice, d, modello)
     if not os.path.exists(percorso):
         abort(404)
 
@@ -265,17 +306,36 @@ def serie_stazione(codice):
     df = pd.read_csv(percorso, index_col=0, parse_dates=True)
 
     # -999 -> NaN, poi tutti i valori divisi per 10
-    df = df.replace(NODATA, np.nan) / 10.0
+    df = df.replace(NODATA, np.nan)
+
+    # Osservati: si aggiungono come colonne in piu', ma SOLO sugli istanti
+    # gia' presenti nella previsione (reindex scarta il resto e mette NaN
+    # dove per quell'istante non c'e' un osservato).
+    colonne_osservati = set()
+    mappa_osservati = COLONNE_OSSERVATI_PER_SERIE.get(serie)
+    if mappa_osservati:
+        percorso_oss = os.path.join(CARTELLA_OSSERVATI, f"{codice}.csv")
+        if os.path.exists(percorso_oss):
+            df_oss = pd.read_csv(percorso_oss, index_col=0, parse_dates=True)
+            df_oss = df_oss.replace(NODATA, np.nan).reindex(df.index)
+            # Solo le colonne configurate per questa serie: il CSV ne
+            # contiene molte altre (di altre serie) da ignorare.
+            presenti = [c for c in mappa_osservati if c in df_oss.columns]
+            if presenti:
+                df_oss = df_oss[presenti].rename(columns=mappa_osservati)
+                colonne_osservati = set(df_oss.columns)
+                df = pd.concat([df, df_oss], axis=1)
 
     tempo = df.index.strftime("%Y-%m-%dT%H:%M:%S").tolist()
     tracce = [
         {
             "nome": colonna,
-            # NaN -> None (JSON null): ECharts li mostra come interruzioni
-            "valori": [None if pd.isna(v) else float(v) for v in df[colonna]],
+            "osservato": colonna in colonne_osservati,
+            "valori": [None if pd.isna(v) else v for v in df[colonna]],
         }
         for colonna in df.columns
     ]
+
     return jsonify({"tempo": tempo, "tracce": tracce})
 
 

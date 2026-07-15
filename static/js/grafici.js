@@ -1,6 +1,6 @@
 /* grafici.js — generazione dei grafici delle SERIE (dati 1D) con ECharts.
  *
- * Il modulo NON conosce mappa, popup o fetch: riceve un contenitore, i dati
+ * Il vento NON conosce mappa, popup o fetch: riceve un contenitore, i dati
  * grezzi ({ tempo, tracce }) e il nome della serie, e disegna. Espone un solo
  * oggetto globale: `Grafici`.
  *
@@ -20,6 +20,12 @@ window.Grafici = (function () {
       yMax: 120,
       tickInterval: 10,
     },
+    umidita: {
+      unita: "%",
+      yMin: 0,
+      yMax: 100,
+      tickInterval: 10,
+    },
     temperatura: {
       unita: "\u00B0C", // °C
       yMin: null,
@@ -33,65 +39,79 @@ window.Grafici = (function () {
   const CONFIG_DEFAULT = { unita: "", yMin: null, yMax: null };
 
   const COLORE_SORGENTE = {
-    "QRF Tmin": "#17becf",
-    "QRF Tmean": "#2ca02c",
-    "QRF Tmax": "#d62728",
-    "Obs Tmin": "#000000",
-    "Obs Tmean": "#000000",
-    "Obs Tmax": "#000000",
-    "Raw Tmean": "#ff7f0e",
-    "Clima Tmean": "#9467bd",
+    "QRF minima": "#17becf",
+    "QRF media": "#2ca02c",
+    "QRF massima": "#d62728",
+    "Obs minima": "#000000",
+    "Obs media": "#000000",
+    "Obs massima": "#000000",
+    ecita: "#ff7f0e",
+    Clima: "#9467bd",
     //
-    "QRF modulo": "#17becf",
-    "Raw modulo": "#1f77b4",
-    "Obs modulo": "#000000",
+    "QRF vento": "#17becf",
+    "ecita vento": "#1f77b4",
+    "Obs vento": "#000000",
     "QRF raffica": "#9467bd",
-    "Raw raffica": "#d62728",
+    "ecita raffica": "#d62728",
     "Obs raffica": "#000000",
   };
 
   const STILE_SORGENTE = {
-    "QRF Tmin": "dashed",
-    "QRF Tmean": "solid",
-    "QRF Tmax": "dotted",
-    "Obs Tmin": "dashed",
-    "Obs Tmean": "solid",
-    "Obs Tmax": "dotted",
-    "Raw Tmean": "solid",
-    "Clima Tmean": "solid",
+    "QRF minima": "dashed",
+    "QRF media": "solid",
+    "QRF massima": "dotted",
+    "Obs minima": "dashed",
+    "Obs media": "solid",
+    "Obs massima": "dotted",
+    ecita: "solid",
+    Clima: "solid",
     //
-    "QRF modulo": "solid",
-    "Raw modulo": "solid",
-    "Obs modulo": "solid",
+    "QRF vento": "solid",
+    "ecita vento": "solid",
+    "Obs vento": "solid",
     "QRF raffica": "dashed",
-    "Raw raffica": "dashed",
+    "ecita raffica": "dashed",
     "Obs raffica": "dashed",
   };
 
   // Nomi di serie da non mostrare mai nel tooltip (aggiungi qui le label da escludere)
   const ESCLUSI_TOOLTIP = new Set([
-    "QRF modulo 25°-75°",
+    "QRF vento 25°-75°",
     "QRF raffica 25°-75°",
-    "QRF Tmin 25°-75°",
-    "QRF Tmean 25°-75°",
-    "QRF Tmax 25°-75°",
+    "QRF minima 25°-75°",
+    "QRF media 25°-75°",
+    "QRF massima 25°-75°",
   ]);
 
+  // Bande sempre spente di default; "ecita"/"Clima" (temperatura) spenti,
+  // "ecita vento"/"ecita raffica" invece accesi (nessun'altra fonte reale
+  // per il vento, a differenza di temperatura/umidita che hanno gli
+  // osservati). Gli "Obs *" non compaiono piu': sostituiti dagli osservati.
   const DISATTIVATI_DEFAULT = new Set([
-    // vento: acceso di default solo QRF modulo, Obs modulo, QRF raffica, Obs raffica
-    "QRF modulo 25°-75°",
-    "Raw modulo",
+    "QRF vento 25°-75°",
     "QRF raffica 25°-75°",
-    "Raw raffica",
-    // temperatura: acceso di default solo QRF Tmin, QRF Tmean, QRF Tmax, Obs Tmean
-    "QRF Tmin 25°-75°",
-    "Obs Tmin",
-    "QRF Tmean 25°-75°",
-    "Raw Tmean",
-    "Clima Tmean",
-    "QRF Tmax 25°-75°",
-    "Obs Tmax",
+    "QRF minima",
+    "QRF minima 25°-75°",
+    "QRF massima",
+    "QRF media 25°-75°",
+    "Clima",
+    "QRF massima 25°-75°",
+    "RF direzione",
+    "ecita direzione",
+    "Obs vento",
+    "Obs raffica",
+    "Obs massima",
+    "Obs minima",
   ]);
+
+  // Il vento arriva dal backend in m/s; il grafico lo mostra in km/h
+  // (vedi CONFIG_SERIE.vento.unita), quindi tutto va moltiplicato per
+  // 3.6 — tranne le colonne di direzione, che restano gradi cosi' come
+  // sono e non vanno convertite.
+  function fattoreConversioneVento(serie, nome) {
+    if (serie !== "vento") return 1;
+    return nome.indexOf("direzione") === -1 ? 3.6 : 1;
+  }
 
   function costruisciSelected() {
     const selected = {};
@@ -102,88 +122,168 @@ window.Grafici = (function () {
   }
 
   // Nomi delle tracce di quantile usate per costruire la banda (non renderizzate come linee singole)
-  const NOMI_BANDA_TMIN = { basso: "QRF Tmin 0.25", alto: "QRF Tmin 0.75" };
-  const NOMI_BANDA_TMEAN = { basso: "QRF Tmean 0.25", alto: "QRF Tmean 0.75" };
-  const NOMI_BANDA_TMAX = { basso: "QRF Tmax 0.25", alto: "QRF Tmax 0.75" };
+  const NOMI_BANDA_TMIN = { basso: "QRF minima 0.25", alto: "QRF minima 0.75" };
+  const NOMI_BANDA_TMEAN = { basso: "QRF media 0.25", alto: "QRF media 0.75" };
+  const NOMI_BANDA_TMAX = {
+    basso: "QRF massima 0.25",
+    alto: "QRF massima 0.75",
+  };
   const NOMI_BANDA_MODULO = {
-    basso: "QRF modulo 0.25",
-    alto: "QRF modulo 0.75",
+    basso: "QRF vento 0.25",
+    alto: "QRF vento 0.75",
   };
   const NOMI_BANDA_RAFFICA = {
     basso: "QRF raffica 0.25",
     alto: "QRF raffica 0.75",
   };
 
+  // Solo le bande pertinenti alla serie in disegno: prima si cercavano
+  // sempre tutte e 5 (anche quelle dell'altra serie), che non trovandole
+  // mai facevano scattare il warning di debug per un falso positivo.
+  // A livello di modulo (non dentro costruisciTracce) perché la usa anche
+  // costruisciLegenda, per sapere quali colonne diventano una banda.
+  const DEFINIZIONI_BANDA_PER_SERIE = {
+    temperatura: [
+      {
+        nomi: NOMI_BANDA_TMIN,
+        colore: "rgba(23, 190, 207, 0.5)",
+        etichetta: "QRF minima 25°-75°",
+      },
+      {
+        nomi: NOMI_BANDA_TMEAN,
+        colore: "rgba(44, 160, 44, 0.5)",
+        etichetta: "QRF media 25°-75°",
+      },
+      {
+        nomi: NOMI_BANDA_TMAX,
+        colore: "rgba(214, 39, 40, 0.5)",
+        etichetta: "QRF massima 25°-75°",
+      },
+    ],
+    umidita: [
+      {
+        // stessa coppia di colonne quantile di temperatura (QRF media
+        // 0.25/0.75): stesso trattamento a banda, stessa etichetta.
+        nomi: NOMI_BANDA_TMEAN,
+        colore: "rgba(44, 160, 44, 0.5)",
+        etichetta: "QRF media 25°-75°",
+      },
+    ],
+    vento: [
+      {
+        nomi: NOMI_BANDA_MODULO,
+        colore: "rgba(23, 190, 207, 0.5)",
+        etichetta: "QRF vento 25°-75°",
+      },
+      {
+        nomi: NOMI_BANDA_RAFFICA,
+        colore: "rgba(148, 103, 189, 0.5)",
+        etichetta: "QRF raffica 25°-75°",
+      },
+    ],
+  };
+
+  // Layout esplicito della legenda per le serie configurate: una voce (nome
+  // reale della traccia, o etichetta di banda) per cella riga/colonna;
+  // null = cella vuota. Sostituisce il vecchio schema ad "a capo
+  // automatico" con separatori invisibili (__sep__), che si riorganizzava
+  // ridimensionando il popup: qui riga e colonna di ogni voce sono fisse.
+  const RIGHE_LEGENDA_PER_SERIE = {
+    temperatura: [
+      ["QRF massima", "QRF massima 25°-75°", "ecita", "Obs massima"],
+      ["QRF media", "QRF media 25°-75°", "Clima", "Obs media"],
+      ["QRF minima", "QRF minima 25°-75°", null, "Obs minima"],
+    ],
+    vento: [
+      ["QRF vento", "QRF vento 25°-75°", "ecita vento", "Obs vento"],
+      ["QRF raffica", "QRF raffica 25°-75°", "ecita raffica", "Obs raffica"],
+    ],
+    umidita: [["QRF media", "QRF media 25°-75°", "ecita", "Obs media"]],
+  };
+  // Posizione (percentuale da sinistra) di ciascuna delle 4 colonne, e
+  // altezza in px tra una riga e la successiva: valori percentuali cosi'
+  // la griglia scala col popup ma senza mai cambiare struttura.
+  const COLONNE_LEGENDA_GRIGLIA = ["4%", "24%", "50%", "70%"];
+  const ALTEZZA_RIGA_LEGENDA = 26;
+
+  // Spazio (px) da riservare in basso nel grafico per la legenda a
+  // griglia di questa serie; le serie non configurate (legenda generica,
+  // a capo automatico) restano al valore di sempre.
+  function altezzaLegenda(serie) {
+    const righe = RIGHE_LEGENDA_PER_SERIE[serie];
+    if (!righe) return 100;
+    return righe.length * ALTEZZA_RIGA_LEGENDA + 50;
+  }
+
   // Costruisce le tracce (linee) ECharts dai dati grezzi.
   function costruisciTracce(dati, serie) {
-    const nomiBanda = new Set([
-      NOMI_BANDA_TMIN.basso,
-      NOMI_BANDA_TMIN.alto,
-      NOMI_BANDA_TMEAN.basso,
-      NOMI_BANDA_TMEAN.alto,
-      NOMI_BANDA_TMAX.basso,
-      NOMI_BANDA_TMAX.alto,
-      NOMI_BANDA_MODULO.basso,
-      NOMI_BANDA_MODULO.alto,
-      NOMI_BANDA_RAFFICA.basso,
-      NOMI_BANDA_RAFFICA.alto,
-    ]);
+    const DEFINIZIONI_BANDA = DEFINIZIONI_BANDA_PER_SERIE[serie] || [];
+
+    // Nomi delle colonne "grezze" usate per costruire le bande di QUESTA
+    // serie: vanno escluse dalle tracce normali (le disegna gia' la banda).
+    // Le serie senza bande configurate (per ora: pioggia) non escludono
+    // nulla: si vede ogni colonna del CSV cosi' com'e'.
+    const nomiEsclusi = new Set();
+    DEFINIZIONI_BANDA.forEach(function (def) {
+      nomiEsclusi.add(def.nomi.basso);
+      nomiEsclusi.add(def.nomi.alto);
+    });
+    // Le serie con legenda a griglia (temperatura/vento/umidita) mostrano
+    // solo le voci elencate in RIGHE_LEGENDA_PER_SERIE: gli "Obs *" non ci
+    // sono piu', sostituiti dagli osservati veri (t.osservato).
+    if (RIGHE_LEGENDA_PER_SERIE[serie]) {
+      dati.tracce.forEach(function (t) {
+        // Nascondi "Obs *" solo se NON e' un osservato vero (residuo del
+        // vecchio schema nel CSV di previsione): gli osservati veri, anche
+        // se rinominati "Obs media" ecc., vanno mostrati.
+        if (t.nome.indexOf("Obs ") === 0 && !t.osservato) {
+          nomiEsclusi.add(t.nome);
+        }
+      });
+      // Un osservato in colonna 4 (es. "Obs minima") ha senso solo se
+      // esiste anche il QRF di quella riga: se manca (stazione senza
+      // "QRF minima"/"QRF massima"/"QRF raffica"), niente linea sul
+      // grafico, non solo niente voce in legenda.
+      RIGHE_LEGENDA_PER_SERIE[serie].forEach(function (riga) {
+        const nomeQrf = riga[0];
+        const nomeOsservato = riga[3];
+        if (!nomeOsservato) return;
+        const cePrevisione = dati.tracce.some(function (t) {
+          return t.nome === nomeQrf;
+        });
+        if (!cePrevisione) nomiEsclusi.add(nomeOsservato);
+      });
+    }
 
     const tracceNormali = dati.tracce
       .filter(function (t) {
-        return !nomiBanda.has(t.nome);
+        return !nomiEsclusi.has(t.nome);
       })
       .map(function (t) {
+        const fattore = fattoreConversioneVento(serie, t.nome);
         return {
           name: t.nome,
           type: "line",
           showSymbol: false,
           symbol: "none",
           smooth: true,
-          color: COLORE_SORGENTE[t.nome],
-          lineStyle: { width: 3, type: STILE_SORGENTE[t.nome] },
+          // Tracce osservate (backend: "osservato":true) sempre nere,
+          // indipendentemente dal nome della colonna nel CSV; lo stile
+          // tratteggio/punteggiato invece segue comunque STILE_SORGENTE
+          // (es. "Obs minima" tratteggiata come "QRF minima"), non e'
+          // sempre "solid".
+          color: t.osservato ? "#000000" : COLORE_SORGENTE[t.nome],
+          lineStyle: {
+            width: 3,
+            type: STILE_SORGENTE[t.nome] || "solid",
+          },
           // [istante, valore]; i null creano le interruzioni
           data: dati.tempo.map(function (istante, i) {
-            return [istante, t.valori[i]];
+            const v = t.valori[i];
+            return [istante, v == null ? null : v * fattore];
           }),
         };
       });
-
-    // Solo le bande pertinenti alla serie in disegno: prima si cercavano
-    // sempre tutte e 5 (anche quelle dell'altra serie), che non trovandole
-    // mai facevano scattare il warning di debug per un falso positivo.
-    const DEFINIZIONI_BANDA_PER_SERIE = {
-      temperatura: [
-        {
-          nomi: NOMI_BANDA_TMIN,
-          colore: "rgba(23, 190, 207, 0.5)",
-          etichetta: "QRF Tmin 25°-75°",
-        },
-        {
-          nomi: NOMI_BANDA_TMEAN,
-          colore: "rgba(44, 160, 44, 0.5)",
-          etichetta: "QRF Tmean 25°-75°",
-        },
-        {
-          nomi: NOMI_BANDA_TMAX,
-          colore: "rgba(214, 39, 40, 0.5)",
-          etichetta: "QRF Tmax 25°-75°",
-        },
-      ],
-      vento: [
-        {
-          nomi: NOMI_BANDA_MODULO,
-          colore: "rgba(23, 190, 207, 0.5)",
-          etichetta: "QRF modulo 25°-75°",
-        },
-        {
-          nomi: NOMI_BANDA_RAFFICA,
-          colore: "rgba(148, 103, 189, 0.5)",
-          etichetta: "QRF raffica 25°-75°",
-        },
-      ],
-    };
-    const DEFINIZIONI_BANDA = DEFINIZIONI_BANDA_PER_SERIE[serie] || [];
 
     const tracceBanda = [];
     DEFINIZIONI_BANDA.forEach(function (def) {
@@ -204,6 +304,7 @@ window.Grafici = (function () {
         return;
       }
 
+      const fattore = fattoreConversioneVento(serie, def.nomi.basso);
       const stackId = "banda-" + def.nomi.alto;
       tracceBanda.push(
         {
@@ -215,7 +316,8 @@ window.Grafici = (function () {
           color: def.colore,
           lineStyle: { opacity: 0 },
           data: dati.tempo.map(function (istante, i) {
-            return [istante, traccBassa.valori[i]];
+            const v = traccBassa.valori[i];
+            return [istante, v == null ? null : v * fattore];
           }),
         },
         {
@@ -233,23 +335,12 @@ window.Grafici = (function () {
             const alto = traccAlta.valori[i];
             return [
               istante,
-              basso == null || alto == null ? null : alto - basso,
+              basso == null || alto == null ? null : (alto - basso) * fattore,
             ];
           }),
         },
       );
     });
-
-    // Serie fittizia vuota: dà "corpo" alla voce separatore della legenda (solo vento).
-    const tracceSeparatore = [
-      { name: "__sep0__", type: "line", data: [], silent: true },
-      { name: "__sep1__", type: "line", data: [], silent: true },
-      { name: "__sep2__", type: "line", data: [], silent: true },
-      { name: "__sep3__", type: "line", data: [], silent: true },
-      { name: "__sep4__", type: "line", data: [], silent: true },
-      { name: "__sep5__", type: "line", data: [], silent: true },
-      { name: "__sep6__", type: "line", data: [], silent: true },
-    ];
 
     const tracceSoglie =
       serie === "vento"
@@ -289,7 +380,7 @@ window.Grafici = (function () {
         };
       }),
     );
-    return tracceNormali.concat(tracceBanda, tracceSeparatore, tracceSoglie);
+    return tracceNormali.concat(tracceBanda, tracceSoglie);
   }
 
   // Trova il minimo e il massimo assoluti tra tutti i valori delle tracce.
@@ -347,7 +438,7 @@ window.Grafici = (function () {
   }
 
   // Costruisce la configurazione della legenda in base alla serie.
-  // Per "vento" servono due colonne separate (modulo / raffica).
+  // Per "vento" servono due colonne separate (vento / raffica).
   // Icone custom per ogni voce di legenda: niente icona "di default" di
   // ECharts, che per le serie di tipo line è sempre trattino+pallino a
   // prescindere dal symbol:"none" dei dati veri (quello vale solo per i
@@ -361,19 +452,20 @@ window.Grafici = (function () {
       "path://M0,7L4,7L4,13L0,13ZM8,7L12,7L12,13L8,13ZM16,7L20,7L20,13L16,13Z",
   };
 
-  function costruisciLegenda(serie) {
+  function costruisciLegenda(dati, serie) {
+    // Etichette un po' piu' grandi (era 11/18/10/12).
     const stileVoce = {
-      textStyle: { fontSize: 11 },
-      itemWidth: 18,
-      itemHeight: 10,
-      itemGap: 12,
+      textStyle: { fontSize: 13 },
+      itemWidth: 22,
+      itemHeight: 12,
+      itemGap: 14,
     };
-    // Le bande 25°-75° rappresentano un'AREA piena (la loro lineStyle e'
-    // invisibile, opacity 0): stessa icona "solid" delle linee continue.
-    const iconaBanda = ICONA_PER_STILE.solid;
 
-    // Voce di legenda per una traccia vera (non banda, non separatore):
-    // sceglie l'icona in base allo stile reale della linea (STILE_SORGENTE).
+    // Voce di legenda per una traccia: icona in base allo stile reale della
+    // linea (STILE_SORGENTE). Le bande e i nomi non configurati (es. gli
+    // osservati, il cui nome dipende dal CSV) ricadono su "solid": le bande
+    // sono comunque un'AREA piena (lineStyle invisibile), quindi lo stesso
+    // rettangolo pieno va bene anche per loro.
     function voce(nome) {
       return {
         name: nome,
@@ -381,64 +473,43 @@ window.Grafici = (function () {
       };
     }
 
-    if (serie === "vento") {
-      return Object.assign(
-        { bottom: 0, left: "center", orient: "horizontal" },
-        stileVoce,
-        {
-          data: [
-            voce("QRF modulo"),
-            { name: "QRF modulo 25°-75°", icon: iconaBanda },
-            voce("Raw modulo"),
-            voce("Obs modulo"),
-            { name: "__sep0__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep1__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep2__", icon: "none" }, // separatore invisibile tra i due gruppi
-            voce("QRF raffica"),
-            { name: "QRF raffica 25°-75°", icon: iconaBanda },
-            voce("Raw raffica"),
-            voce("Obs raffica"),
-          ],
-          formatter: function (nome) {
-            return nome.indexOf("__sep") === 0 ? "" : nome;
-          },
-          selected: costruisciSelected(),
-        },
-      );
+    const righe = RIGHE_LEGENDA_PER_SERIE[serie];
+    if (righe) {
+      // Una voce = un componente legend a se', posizionato con left/bottom
+      // espliciti invece del solito a capo automatico di ECharts: cosi'
+      // la disposizione a righe/colonne resta quella voluta qualunque sia
+      // la larghezza del popup (prima, ridimensionando, l'a-capo automatico
+      // spostava le voci e rompeva i due gruppi vento/raffica o le tre
+      // righe di temperatura).
+      const componenti = [];
+      righe.forEach(function (riga, indiceRiga) {
+        const bottom = (righe.length - 1 - indiceRiga) * ALTEZZA_RIGA_LEGENDA;
+        riga.forEach(function (nome, indiceColonna) {
+          if (!nome) return; // cella vuota
+          // La colonna degli osservati (indice 3) ha senso solo se il
+          // plot ha anche il QRF di quella riga: senza "QRF minima" non
+          // si mostra "Obs minima" (idem massima, raffica).
+          if (indiceColonna === 3) {
+            const nomeQrf = riga[0];
+            const cePrevisione = dati.tracce.some(function (t) {
+              return t.nome === nomeQrf;
+            });
+            if (!cePrevisione) return;
+          }
+          componenti.push(
+            Object.assign({}, stileVoce, {
+              left: COLONNE_LEGENDA_GRIGLIA[indiceColonna],
+              bottom: bottom,
+              data: [voce(nome)],
+              selected: costruisciSelected(),
+            }),
+          );
+        });
+      });
+
+      return componenti;
     }
 
-    if (serie === "temperatura") {
-      return Object.assign(
-        { bottom: 0, left: "center", orient: "horizontal" },
-        stileVoce,
-        {
-          data: [
-            voce("QRF Tmin"),
-            { name: "QRF Tmin 25°-75°", icon: iconaBanda },
-            voce("Obs Tmin"),
-            { name: "__sep0__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep1__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep2__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep3__", icon: "none" }, // separatore invisibile tra i due gruppi
-            voce("QRF Tmean"),
-            { name: "QRF Tmean 25°-75°", icon: iconaBanda },
-            voce("Obs Tmean"),
-            voce("Raw Tmean"),
-            voce("Clima Tmean"),
-            { name: "__sep4__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep5__", icon: "none" }, // separatore invisibile tra i due gruppi
-            { name: "__sep6__", icon: "none" }, // separatore invisibile tra i due gruppi
-            voce("QRF Tmax"),
-            { name: "QRF Tmax 25°-75°", icon: iconaBanda },
-            voce("Obs Tmax"),
-          ],
-          formatter: function (nome) {
-            return nome.indexOf("__sep") === 0 ? "" : nome;
-          },
-          selected: costruisciSelected(),
-        },
-      );
-    }
     return Object.assign(
       { bottom: 0, left: "center", orient: "horizontal" },
       stileVoce,
@@ -460,7 +531,7 @@ window.Grafici = (function () {
         left: 44,
         right: 14,
         top: 50,
-        bottom: 100, // spazio per la legenda orizzontale sotto l'asse x, su piu' righe se serve
+        bottom: altezzaLegenda(serie),
       },
       tooltip: {
         trigger: "axis",
@@ -513,7 +584,7 @@ window.Grafici = (function () {
           saveAsImage: {},
         },
       },
-      legend: costruisciLegenda(serie),
+      legend: costruisciLegenda(dati, serie),
       xAxis: {
         type: "time",
         minInterval: 3600 * 1000,
@@ -579,16 +650,23 @@ window.Grafici = (function () {
     // che l'utente ha acceso/spento a mano nella legenda: altrimenti ogni
     // ridisegno (cambio data, "Oggi", rotella sul calendario, refresh...)
     // lo resetterebbe silenziosamente ai default, con notMerge:true.
+    // getOption().legend e' sempre un array (anche per le serie con un solo
+    // componente legend, come prima): ora che alcune serie ne hanno uno per
+    // voce, si uniscono gli "selected" di TUTTI i componenti vecchi in
+    // un'unica mappa e la si riapplica a tutti i componenti nuovi.
     if (esistente) {
-      const vecchiaLegenda = esistente.getOption().legend;
-      const vecchioSelected =
-        vecchiaLegenda && vecchiaLegenda[0] && vecchiaLegenda[0].selected;
-      if (vecchioSelected) {
-        opz.legend.selected = Object.assign(
-          {},
-          opz.legend.selected,
-          vecchioSelected,
-        );
+      const vecchiaLegenda = esistente.getOption().legend || [];
+      const vecchioSelected = {};
+      vecchiaLegenda.forEach(function (l) {
+        Object.assign(vecchioSelected, l.selected);
+      });
+      if (Object.keys(vecchioSelected).length) {
+        const nuoveLegende = Array.isArray(opz.legend)
+          ? opz.legend
+          : [opz.legend];
+        nuoveLegende.forEach(function (l) {
+          l.selected = Object.assign({}, l.selected, vecchioSelected);
+        });
       }
     }
 
