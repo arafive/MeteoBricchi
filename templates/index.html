@@ -229,24 +229,24 @@
               <button
                 type="button"
                 class="bottone-campo"
-                data-campo="caldo"
+                data-campo="caldo_obs"
                 title="Heat Index"
                 aria-label="Heat Index"
               >
                 <img
-                  src="{{ url_for('static', filename='icone/caldo.svg') }}"
+                  src="{{ url_for('static', filename='icone/caldo_obs.svg') }}"
                   alt=""
                 />
               </button>
               <button
                 type="button"
                 class="bottone-campo"
-                data-campo="freddo"
+                data-campo="freddo_obs"
                 title="Wind Chill"
                 aria-label="Wind Chill"
               >
                 <img
-                  src="{{ url_for('static', filename='icone/freddo.svg') }}"
+                  src="{{ url_for('static', filename='icone/freddo_obs.svg') }}"
                   alt=""
                 />
               </button>
@@ -791,7 +791,7 @@
           }),
         );
       // Fino a 3 colorbar mostrabili insieme (una per ciascun campo attivo
-      // che ne ha una, radar/riflettivita/vert_int_liq/caldo/freddo; fulmini
+      // che ne ha una, radar/riflettivita/vert_int_liq/caldo_obs/freddo_obs; fulmini
       // e satellite non ne hanno)
       const colorbarEl = [
         document.getElementById("colorbarCampo0"),
@@ -840,15 +840,15 @@
             "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
         },
         fulmini: { tipo: "punti", etichetta: "Fulmini" },
-        caldo: {
+        caldo_obs: {
           tipo: "immagine",
-          etichetta: "Heat Index",
+          etichetta: "Heat Index osservato",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_heatindex2D_obs.png') }}",
         },
-        freddo: {
+        freddo_obs: {
           tipo: "immagine",
-          etichetta: "Wind Chill",
+          etichetta: "Wind Chill osservato",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
         },

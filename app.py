@@ -47,8 +47,8 @@ CARTELLE_RADAR = {
     "radar": (os.path.join(CARTELLA_CAMPI, "radar_sri"), "webp", "image/webp"),
     "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "webp", "image/webp"),
     "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
-    "caldo": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
-    "freddo": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
+    "caldo_obs": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
+    "freddo_obs": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
 }
 CARTELLA_FULMINI = os.path.join(CARTELLA_CAMPI, "fulmini")
 # Prodotti satellite: stessa idea di CARTELLE_RADAR, ma frame in .webp e
@@ -343,7 +343,7 @@ def serie_stazione(codice):
 def radar_lista():
     """Elenco di tutti i frame + i bounds (identici per tutti, letti una volta
     dal sidecar del primo). Il client sfoglia poi solo cambiando immagine.
-    Parametro query: ?campo=radar|riflettivita|vert_int_liq|caldo|freddo."""
+    Parametro query: ?campo=radar|riflettivita|vert_int_liq|caldo_obs|freddo_obs."""
     campo = request.args.get("campo", "")
     voce = CARTELLE_RADAR.get(campo)
     if voce is None:
@@ -382,7 +382,7 @@ def radar_immagine(nome, estensione):
     Il nome invece identifica sempre lo stesso file, univocamente.
 
     L'estensione nell'URL deve combaciare con quella configurata per il
-    campo (png per caldo/freddo, webp per radar/riflettivita/vert_int_liq):
+    campo (png per caldo_obs/freddo_obs, webp per radar/riflettivita/vert_int_liq):
     serve solo a evitare che un campo venga servito con l'estensione
     sbagliata, non e' liberamente scelta dal client.
     """
