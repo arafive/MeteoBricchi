@@ -270,6 +270,23 @@ def stazioni():
     return jsonify(elenco)
 
 
+@app.route("/stazione/<codice>/serie")
+def serie_stazione_disponibili(codice):
+    """Elenco delle SERIE 1D in cui compare una data stazione (indipendente
+    dalla data): serve al popup del grafico per proporre le altre serie
+    disponibili per la STESSA stazione, senza dover tornare al menu'.
+    Una stazione e' "in" una serie se il suo codice compare nel CSV
+    coordinate/<serie>/*.csv - non e' detto che per la data corrente esista
+    gia' un file pronto da plottare (quello lo verifica /serie/<codice>)."""
+    if not re.fullmatch(r"[A-Za-z0-9_]+", codice):
+        abort(404)
+    disponibili = [
+        serie for serie in sorted(SERIE_VALIDE)
+        if any(s["codice"] == codice for s in leggi_stazioni(serie))
+    ]
+    return jsonify(disponibili)
+
+
 @app.route("/serie/<codice>")
 def serie_stazione(codice):
     """Serie temporale (dato 1D) di una stazione, per una serie e una data.

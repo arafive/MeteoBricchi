@@ -213,8 +213,8 @@ body {
 .finestra-grafico {
   position: fixed;
   z-index: 2000;
-  width: 800px;
-  height: 480px;
+  width: 960px;
+  height: 560px;
   min-width: 360px;
   min-height: 260px;
   max-width: 95vw;
@@ -298,6 +298,45 @@ body {
 
 .finestra-grafico .titolo-popup:active {
   cursor: grabbing;
+}
+
+.selettore-serie-popup {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.selettore-serie-popup[hidden] {
+  display: none;
+}
+
+.selettore-serie-popup .bottone-serie-popup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0;
+  background: #f0f2f5;
+  border: 1px solid #d3d9e0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.selettore-serie-popup .bottone-serie-popup img {
+  width: 20px;
+  height: 20px;
+}
+
+.selettore-serie-popup .bottone-serie-popup:hover {
+  border-color: #9aa5b1;
+}
+
+.selettore-serie-popup .bottone-serie-popup.attivo {
+  border-color: #2f6fed;
+  background: #e3ecfd;
 }
 
 .modale-chiudi {

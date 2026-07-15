@@ -891,6 +891,25 @@
         satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
 
+      const DESCRITTORI_SERIE = {
+        vento: {
+          etichetta: "Vento",
+          icona: "{{ url_for('static', filename='icone/vento.svg') }}",
+        },
+        temperatura: {
+          etichetta: "Temperatura",
+          icona: "{{ url_for('static', filename='icone/temperatura.svg') }}",
+        },
+        umidita: {
+          etichetta: "Umidità",
+          icona: "{{ url_for('static', filename='icone/umidita.svg') }}",
+        },
+        pioggia: {
+          etichetta: "Pioggia",
+          icona: "{{ url_for('static', filename='icone/pioggia.svg') }}",
+        },
+      };
+
       // Prodotto satellite attualmente scelto (geocolour|sandwich): non
       // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
       // ritrova l'ultima scelta fatta.
@@ -1552,17 +1571,21 @@
         elTitolo.style.fontSize = "1.2rem";
         elTitolo.style.textAlign = "center";
 
+        const elSelettoreSerie = document.createElement("div");
+        elSelettoreSerie.className = "selettore-serie-popup";
+        elSelettoreSerie.hidden = true;
+
         const elGrafico = document.createElement("div");
         elGrafico.className = "grafico-popup";
         elGrafico.textContent = "(carico...)";
 
-        elFinestra.append(elChiudi, elTitolo, elGrafico);
+        elFinestra.append(elChiudi, elTitolo, elSelettoreSerie, elGrafico);
         finestreGrafici.appendChild(elFinestra);
 
         // Posizione iniziale: centrata come prima per la prima finestra, poi
         // a cascata (leggero sfalsamento) per quelle aperte successivamente
-        const larghezza = 800;
-        const altezza = 480;
+        const larghezza = 960; // .finestra-grafico deve essere allineato
+        const altezza = 560; // .finestra-grafico deve essere allineato
         const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
         const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
         const offset = (cascataGrafici++ % 8) * 28;
@@ -1571,11 +1594,12 @@
         elFinestra.style.top = baseY + offset + "px";
 
         const stato = {
-          serie: serieAttiva, // la SERIE attiva al momento dell'apertura
-          elFinestra,
-          elGrafico,
-          grafico: null,
-          appenaCreato: false,
+        serie: serieAttiva, // la SERIE attiva al momento dell'apertura
+        elFinestra,
+        elSelettoreSerie,
+        elGrafico,
+        grafico: null,
+        appenaCreato: false,
         };
         finestreAperte.set(s.codice, stato);
 
@@ -1601,7 +1625,49 @@
         stato.osservatore = osservatore;
 
         portaInPrimoPiano(s.codice);
+        caricaSerieDisponibiliPopup(s.codice);
         disegnaGraficoFinestra(s.codice);
+      }
+
+      function caricaSerieDisponibiliPopup(codice) {
+        fetch("/stazione/" + encodeURIComponent(codice) + "/serie")
+          .then((r) => (r.ok ? r.json() : []))
+          .then((serie) => {
+            const f = finestreAperte.get(codice);
+            if (!f) return;
+            f.elSelettoreSerie.textContent = "";
+            f.elSelettoreSerie.hidden = serie.length < 2;
+            if (f.elSelettoreSerie.hidden) return;
+            serie.forEach((s) => {
+              const descr = DESCRITTORI_SERIE[s];
+              if (!descr) return;
+              const bottone = document.createElement("button");
+              bottone.type = "button";
+              bottone.className = "bottone-serie-popup";
+              bottone.title = descr.etichetta;
+              bottone.setAttribute("aria-label", descr.etichetta);
+              bottone.dataset.serie = s;
+              bottone.classList.toggle("attivo", s === f.serie);
+              bottone.innerHTML = '<img src="' + descr.icona + '" alt="">';
+              bottone.addEventListener("click", () =>
+                cambiaSerieFinestra(codice, s),
+              );
+              f.elSelettoreSerie.appendChild(bottone);
+            });
+          })
+          .catch(() => {});
+      }
+
+      function cambiaSerieFinestra(codice, serie) {
+        const f = finestreAperte.get(codice);
+        if (!f || f.serie === serie) return;
+        f.serie = serie;
+        f.elSelettoreSerie
+          .querySelectorAll(".bottone-serie-popup")
+          .forEach((b) =>
+            b.classList.toggle("attivo", b.dataset.serie === serie),
+          );
+        disegnaGraficoFinestra(codice);
       }
 
       // Chiude una finestra: libera l'istanza ECharts e l'observer
