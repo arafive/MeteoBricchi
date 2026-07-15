@@ -49,6 +49,8 @@ CARTELLE_RADAR = {
     "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
     "caldo_obs": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
     "freddo_obs": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
+    "caldo_prev": (os.path.join(CARTELLA_CAMPI, "heatindex2D_prev", "ecita"), "png", "image/png"),
+    "freddo_prev": (os.path.join(CARTELLA_CAMPI, "windchill2D_prev", "ecita"), "png", "image/png"),
 }
 CARTELLA_FULMINI = os.path.join(CARTELLA_CAMPI, "fulmini")
 # Prodotti satellite: stessa idea di CARTELLE_RADAR, ma frame in .webp e

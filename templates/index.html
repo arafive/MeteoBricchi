@@ -230,8 +230,8 @@
                 type="button"
                 class="bottone-campo"
                 data-campo="caldo_obs"
-                title="Heat Index"
-                aria-label="Heat Index"
+                title="Heat Index Osservato"
+                aria-label="Heat Index Osservato"
               >
                 <img
                   src="{{ url_for('static', filename='icone/caldo_obs.svg') }}"
@@ -241,12 +241,36 @@
               <button
                 type="button"
                 class="bottone-campo"
+                data-campo="caldo_prev"
+                title="Heat Index Previsto"
+                aria-label="Heat Index Previsto"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/caldo_prev.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
                 data-campo="freddo_obs"
-                title="Wind Chill"
-                aria-label="Wind Chill"
+                title="Wind Chill Osservato"
+                aria-label="Wind Chill Osservato"
               >
                 <img
                   src="{{ url_for('static', filename='icone/freddo_obs.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="freddo_prev"
+                title="Wind Chill Previsto"
+                aria-label="Wind Chill Previsto"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/freddo_prev.svg') }}"
                   alt=""
                 />
               </button>
@@ -842,15 +866,27 @@
         fulmini: { tipo: "punti", etichetta: "Fulmini" },
         caldo_obs: {
           tipo: "immagine",
-          etichetta: "Heat Index osservato",
+          etichetta: "Heat Index Osservato",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_heatindex2D_obs.png') }}",
         },
         freddo_obs: {
           tipo: "immagine",
-          etichetta: "Wind Chill osservato",
+          etichetta: "Wind Chill Osservato",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
+        },
+        caldo_prev: {
+          tipo: "immagine",
+          etichetta: "Heat Index Previsto",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_heatindex2D_prev.png') }}",
+        },
+        freddo_prev: {
+          tipo: "immagine",
+          etichetta: "Wind Chill Previsto",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_windchill2D_prev.png') }}",
         },
         satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
