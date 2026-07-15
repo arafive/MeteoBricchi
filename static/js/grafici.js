@@ -55,6 +55,8 @@ window.Grafici = (function () {
     "ecita raffica": "#d62728",
     "Obs raffica": "#000000",
   };
+  COLORE_SORGENTE["ecita direzione"] = COLORE_SORGENTE["ecita vento"];
+  COLORE_SORGENTE["RF direzione"] = COLORE_SORGENTE["QRF vento"];
 
   const STILE_SORGENTE = {
     "QRF minima": "dashed",
@@ -96,8 +98,6 @@ window.Grafici = (function () {
     "QRF media 25°-75°",
     "Clima",
     "QRF massima 25°-75°",
-    "RF direzione",
-    "ecita direzione",
     "Obs vento",
     "Obs raffica",
     "Obs massima",
@@ -224,6 +224,8 @@ window.Grafici = (function () {
     // Le serie senza bande configurate (per ora: pioggia) non escludono
     // nulla: si vede ogni colonna del CSV cosi' com'e'.
     const nomiEsclusi = new Set();
+    nomiEsclusi.add("RF direzione");
+    nomiEsclusi.add("ecita direzione");
     DEFINIZIONI_BANDA.forEach(function (def) {
       nomiEsclusi.add(def.nomi.basso);
       nomiEsclusi.add(def.nomi.alto);
@@ -519,20 +521,145 @@ window.Grafici = (function () {
     );
   }
 
+  // --- Frecce di direzione del vento ---------------------------------------
+  // Simbolo: il path del tuo freccia.svg (punta verso l'ALTO) — copiato
+  // com'e' dall'attributo "d" del file, con "path://" davanti: resta un
+  // path vero (non un'immagine), quindi itemStyle.color continua a
+  // funzionare per colorarlo diversamente per ecita/RF.
+  const SIMBOLO_FRECCIA_VENTO =
+    "path://m 31.5703,6.5391 -15.625,-15.625 c -1.2188,-1.2188 -3.1875,-1.2188 -4.4062,0 l -15.625,15.625 c -1.2188,1.2188 -1.2188,3.1875 0,4.4062 1.2188,1.2187 3.1875,1.2188 4.4062,0 l 10.281,-10.281 v 61.219 c 0,1.7188 1.4062,3.125 3.125,3.125 1.7188,0 3.125,-1.4062 3.125,-3.125 V 0.6643 l 10.281,10.281 c 1.2188,1.2188 3.1875,1.2188 4.4062,0 1.2187,-1.2188 1.2188,-3.1875 0,-4.4062 z";
+
+  const COLONNE_DIREZIONE_VENTO = ["ecita direzione", "RF direzione"];
+  const ALTEZZA_CORSIA_FRECCE = 34;
+  const MARGINE_CORSIA_FRECCE = 8; // sopra la legenda, sotto la corsia
+  const MARGINE_SOTTO_FRECCE = -10; // sotto le etichette della data, sopra la corsia
+
+  function formattaDataOraFreccia(istante) {
+    const MESI = [
+      "gen", "feb", "mar", "apr", "mag", "giu",
+      "lug", "ago", "set", "ott", "nov", "dic",
+    ];
+    const d = new Date(istante);
+    return (
+      String(d.getDate()).padStart(2, "0") +
+      " " +
+      MESI[d.getMonth()] +
+      " " +
+      String(d.getHours()).padStart(2, "0") +
+      ":" +
+      String(d.getMinutes()).padStart(2, "0")
+    );
+  }
+
+  function costruisciFrecceDirezione(dati, serie) {
+    if (serie !== "vento") return null;
+
+    const colonnePresenti = COLONNE_DIREZIONE_VENTO.filter(function (nome) {
+      return dati.tracce.some(function (t) {
+        return t.nome === nome;
+      });
+    });
+    if (!colonnePresenti.length) return null;
+
+    const series = colonnePresenti.map(function (nome) {
+      const traccia = dati.tracce.find(function (t) {
+        return t.nome === nome;
+      });
+      const datiFreccia = dati.tempo
+        .map(function (istante, i) {
+          return { istante: istante, direzione: traccia.valori[i] };
+        })
+        .filter(function (p) {
+          return p.direzione != null;
+        })
+        .map(function (p) {
+          return { value: [p.istante, nome], direzione: p.direzione };
+        });
+      return {
+        name: nome,
+        type: "scatter",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        symbol: SIMBOLO_FRECCIA_VENTO,
+        symbolSize: [9, 18],
+        symbolRotate: function (value, params) {
+          return (params.data.direzione + 180) % 360;
+        },
+        itemStyle: { color: COLORE_SORGENTE[nome] || "#5a6b7b" },
+        tooltip: {
+          trigger: "item",
+          formatter: function (params) {
+            return formattaDataOraFreccia(params.data.value[0]);
+          },
+        },
+        data: datiFreccia,
+      };
+    });
+
+    return {
+      grid: {
+        left: 44,
+        right: 14,
+        bottom:
+          RIGHE_LEGENDA_PER_SERIE[serie].length * ALTEZZA_RIGA_LEGENDA +
+          MARGINE_CORSIA_FRECCE,
+        height: ALTEZZA_CORSIA_FRECCE,
+      },
+      xAxis: { type: "time", gridIndex: 1, show: false },
+      yAxis: { type: "category", gridIndex: 1, data: colonnePresenti, show: false },
+      series: series,
+    };
+  }
+
   // Costruisce l'intero oggetto option di ECharts per una serie.
   function opzioni(dati, serie) {
     const cfg = CONFIG_SERIE[serie] || CONFIG_DEFAULT;
+    const frecce = costruisciFrecceDirezione(dati, serie);
+    const grigliaPrincipale = {
+      left: 44,
+      right: 14,
+      top: 50,
+      bottom: altezzaLegenda(serie) +
+        (frecce ? ALTEZZA_CORSIA_FRECCE + MARGINE_CORSIA_FRECCE + MARGINE_SOTTO_FRECCE : 0),
+    };
+    const assePrincipaleX = {
+      type: "time",
+      minInterval: 3600 * 1000,
+      axisLabel: {
+        fontSize: 11,
+        interval: function (index, valore) {
+          return new Date(valore).getHours() % 3 === 0;
+        },
+        formatter: function (valore) {
+          const GIORNI = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
+          const MESI = [
+            "gen", "feb", "mar", "apr", "mag", "giu",
+            "lug", "ago", "set", "ott", "nov", "dic",
+          ];
+          const d = new Date(valore);
+          if (d.getHours() === 0) {
+            const giorno = String(d.getDate()).padStart(2, "0");
+            return (
+              "{bold|" + GIORNI[d.getDay()] + "}\n{bold|" +
+              giorno + " " + MESI[d.getMonth()] + "}"
+            );
+          }
+          return String(d.getHours()).padStart(2, "0") + ":00";
+        },
+        rich: { bold: { fontWeight: "bold", lineHeight: 16 } },
+      },
+      axisTick: {
+        interval: function (index, valore) {
+          return new Date(valore).getHours() % 3 === 0;
+        },
+      },
+    };
     return {
       animation: true,
       animationDuration: 700,
       animationEasing: "linear",
       animationThreshold: 10000,
-      grid: {
-        left: 44,
-        right: 14,
-        top: 50,
-        bottom: altezzaLegenda(serie),
-      },
+      grid: frecce ? [grigliaPrincipale, frecce.grid] : grigliaPrincipale,
       tooltip: {
         trigger: "axis",
         textStyle: { fontSize: 10 },
@@ -584,58 +711,14 @@ window.Grafici = (function () {
           saveAsImage: {},
         },
       },
-      legend: costruisciLegenda(dati, serie),
-      xAxis: {
-        type: "time",
-        minInterval: 3600 * 1000,
-        axisLabel: {
-          fontSize: 11,
-          interval: function (index, valore) {
-            return new Date(valore).getHours() % 3 === 0;
-          },
-          formatter: function (valore) {
-            const GIORNI = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
-            const MESI = [
-              "gen",
-              "feb",
-              "mar",
-              "apr",
-              "mag",
-              "giu",
-              "lug",
-              "ago",
-              "set",
-              "ott",
-              "nov",
-              "dic",
-            ];
-            const d = new Date(valore);
-            if (d.getHours() === 0) {
-              const giorno = String(d.getDate()).padStart(2, "0");
-              return (
-                "{bold|" +
-                GIORNI[d.getDay()] +
-                "}\n{bold|" +
-                giorno +
-                " " +
-                MESI[d.getMonth()] +
-                "}"
-              );
-            }
-            return String(d.getHours()).padStart(2, "0") + ":00";
-          },
-          rich: {
-            bold: { fontWeight: "bold", lineHeight: 16 },
-          },
-        },
-        axisTick: {
-          interval: function (index, valore) {
-            return new Date(valore).getHours() % 3 === 0;
-          },
-        },
-      },
-      yAxis: costruisciAsseY(cfg, dati),
-      series: costruisciTracce(dati, serie),
+    legend: costruisciLegenda(dati, serie),
+      xAxis: frecce ? [assePrincipaleX, frecce.xAxis] : assePrincipaleX,
+      yAxis: frecce
+        ? [costruisciAsseY(cfg, dati), frecce.yAxis]
+        : costruisciAsseY(cfg, dati),
+      series: frecce
+        ? costruisciTracce(dati, serie).concat(frecce.series)
+        : costruisciTracce(dati, serie),
     };
   }
 
