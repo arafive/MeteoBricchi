@@ -36,6 +36,7 @@ COLONNE_OSSERVATI_PER_SERIE = {
     "vento": {
         "WSPDM": "Obs vento",
         "WSPDX": "Obs raffica",
+        "WDIRP": "Obs direzione",
     },
     "umidita": {
         "REHUM": "Obs media",

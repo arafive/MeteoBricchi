@@ -57,6 +57,7 @@ window.Grafici = (function () {
   };
   COLORE_SORGENTE["ecita direzione"] = COLORE_SORGENTE["ecita vento"];
   COLORE_SORGENTE["RF direzione"] = COLORE_SORGENTE["QRF vento"];
+  COLORE_SORGENTE["Obs direzione"] = COLORE_SORGENTE["Obs vento"];
 
   const STILE_SORGENTE = {
     "QRF minima": "dashed",
@@ -226,6 +227,7 @@ window.Grafici = (function () {
     const nomiEsclusi = new Set();
     nomiEsclusi.add("RF direzione");
     nomiEsclusi.add("ecita direzione");
+    nomiEsclusi.add("Obs direzione");
     DEFINIZIONI_BANDA.forEach(function (def) {
       nomiEsclusi.add(def.nomi.basso);
       nomiEsclusi.add(def.nomi.alto);
@@ -529,8 +531,8 @@ window.Grafici = (function () {
   const SIMBOLO_FRECCIA_VENTO =
     "path://m 31.5703,6.5391 -15.625,-15.625 c -1.2188,-1.2188 -3.1875,-1.2188 -4.4062,0 l -15.625,15.625 c -1.2188,1.2188 -1.2188,3.1875 0,4.4062 1.2188,1.2187 3.1875,1.2188 4.4062,0 l 10.281,-10.281 v 61.219 c 0,1.7188 1.4062,3.125 3.125,3.125 1.7188,0 3.125,-1.4062 3.125,-3.125 V 0.6643 l 10.281,10.281 c 1.2188,1.2188 3.1875,1.2188 4.4062,0 1.2187,-1.2188 1.2188,-3.1875 0,-4.4062 z";
 
-  const COLONNE_DIREZIONE_VENTO = ["ecita direzione", "RF direzione"];
-  const ALTEZZA_CORSIA_FRECCE = 34;
+  const COLONNE_DIREZIONE_VENTO = ["ecita direzione", "RF direzione", "Obs direzione"];
+  const ALTEZZA_RIGA_FRECCIA = 17;
   const MARGINE_CORSIA_FRECCE = 8; // sopra la legenda, sotto la corsia
   const MARGINE_SOTTO_FRECCE = -10; // sotto le etichette della data, sopra la corsia
 
@@ -561,7 +563,7 @@ window.Grafici = (function () {
     });
     if (!colonnePresenti.length) return null;
 
-    const series = colonnePresenti.map(function (nome) {
+      const series = colonnePresenti.reduce(function (acc, nome) {
       const traccia = dati.tracce.find(function (t) {
         return t.nome === nome;
       });
@@ -575,38 +577,67 @@ window.Grafici = (function () {
         .map(function (p) {
           return { value: [p.istante, nome], direzione: p.direzione };
         });
-      return {
+
+      const bersaglio = {
         name: nome,
         type: "scatter",
         xAxisIndex: 1,
         yAxisIndex: 1,
-        symbol: SIMBOLO_FRECCIA_VENTO,
-        symbolSize: [9, 18],
-        symbolRotate: function (value, params) {
-          return (params.data.direzione + 180) % 360;
-        },
-        itemStyle: { color: COLORE_SORGENTE[nome] || "#5a6b7b" },
+        symbol: "circle",
+        symbolSize: 14,
+        itemStyle: { opacity: 0 },
         tooltip: {
           trigger: "item",
+          borderColor: COLORE_SORGENTE[nome] || "#5a6b7b",
+          borderWidth: 1.5,
           formatter: function (params) {
             return formattaDataOraFreccia(params.data.value[0]);
           },
         },
         data: datiFreccia,
       };
-    });
+
+      const freccia = {
+        name: nome,
+        type: "scatter",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        symbol: SIMBOLO_FRECCIA_VENTO,
+        symbolSize: [7, 14],
+        symbolRotate: function (value, params) {
+          return (180 - params.data.direzione + 360) % 360;
+        },
+        itemStyle: { color: COLORE_SORGENTE[nome] || "#5a6b7b" },
+        silent: true,
+        data: datiFreccia,
+      };
+
+      return acc.concat([bersaglio, freccia]);
+    }, []);
 
     return {
       grid: {
-        left: 44,
-        right: 14,
+        left: 62,
+        right: 22,
         bottom:
           RIGHE_LEGENDA_PER_SERIE[serie].length * ALTEZZA_RIGA_LEGENDA +
           MARGINE_CORSIA_FRECCE,
-        height: ALTEZZA_CORSIA_FRECCE,
+        height: colonnePresenti.length * ALTEZZA_RIGA_FRECCIA,
       },
-      xAxis: { type: "time", gridIndex: 1, show: false },
-      yAxis: { type: "category", gridIndex: 1, data: colonnePresenti, show: false },
+      xAxis: {
+        type: "time",
+        gridIndex: 1,
+        show: false,
+        min: dati.tempo[0],
+        max: dati.tempo[dati.tempo.length - 1],
+      },
+      yAxis: {
+        type: "category",
+        gridIndex: 1,
+        data: colonnePresenti,
+        show: false,
+        axisPointer: { show: false },
+      },
       series: series,
     };
   }
@@ -616,14 +647,16 @@ window.Grafici = (function () {
     const cfg = CONFIG_SERIE[serie] || CONFIG_DEFAULT;
     const frecce = costruisciFrecceDirezione(dati, serie);
     const grigliaPrincipale = {
-      left: 44,
-      right: 14,
+      left: frecce ? 62 : 44,
+      right: frecce ? 22 : 14,
       top: 50,
       bottom: altezzaLegenda(serie) +
-        (frecce ? ALTEZZA_CORSIA_FRECCE + MARGINE_CORSIA_FRECCE + MARGINE_SOTTO_FRECCE : 0),
+        (frecce ? frecce.grid.height + MARGINE_CORSIA_FRECCE + MARGINE_SOTTO_FRECCE : 0),
     };
-    const assePrincipaleX = {
+      const assePrincipaleX = {
       type: "time",
+      min: dati.tempo[0],
+      max: dati.tempo[dati.tempo.length - 1],
       minInterval: 3600 * 1000,
       axisLabel: {
         fontSize: 11,
