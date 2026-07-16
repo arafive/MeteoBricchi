@@ -21,6 +21,7 @@ README.txt
 
 --- Altro
     Logo meteobricchi.
+    Pulsante "Ricentra zoom"
 
 --- Bachi
     In run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere

@@ -1,7 +1,6 @@
 dati2D/
 dati1D/
 __pycache__/
-static/icone/
 static/echarts
 shapefile/
 sync_dati2D_da_casa.sh
