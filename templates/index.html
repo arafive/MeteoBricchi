@@ -716,11 +716,11 @@
       // --- Shapefile: confini geografici statici, sovrapponibili insieme
       // (non esclusivi come mappa/sentieri: se ne possono attivare piu' d'uno).
       const DEFINIZIONI_SHAPEFILE = [
-        { id: "regioni", nome: "Regioni", colore: "#2f6fed" },
-        { id: "comprensori", nome: "Comprensori", colore: "#9467bd" },
-        { id: "bacini", nome: "Bacini", colore: "#17becf" },
-        { id: "comuni", nome: "Comuni", colore: "#d62728" },
-        { id: "aree", nome: "Aree", colore: "#2ca02c" },
+        { id: "regioni", nome: "Regioni", colore: "#ffffff", spessore: 3 },
+        { id: "comprensori", nome: "Comprensori", colore: "#9467bd", spessore: 2 },
+        { id: "bacini", nome: "Bacini", colore: "#17becf", spessore: 2 },
+        { id: "comuni", nome: "Comuni", colore: "#d62728", spessore: 2 },
+        { id: "aree", nome: "Aree", colore: "#2ca02c", spessore: 2 },
       ];
 
       const livelliShapefile = {}; // id -> layer Leaflet, presente solo se attivo
@@ -779,7 +779,7 @@
           livelliShapefile[id] = L.geoJSON(geojson, {
             style: {
               color: (def && def.colore) || "#2f6fed",
-              weight: 1.5,
+              weight: (def && def.spessore) || 1.5,
               fillOpacity: 0.04,
             },
             onEachFeature: (feature, layer) => {
