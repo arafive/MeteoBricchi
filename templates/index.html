@@ -347,6 +347,23 @@
         <button type="button" id="radarIndietro">◀</button>
         <div id="radarEtichette"></div>
         <button type="button" id="radarAvanti">▶</button>
+        <div
+          class="velocita-animazione"
+          id="controlloVelocitaAnimazione"
+          title="Velocità animazione"
+          hidden
+        >
+          <span class="velocita-etichetta">Velocità</span>
+          <input
+            type="range"
+            id="cursoreVelocitaAnimazione"
+            min="0.25"
+            max="3"
+            step="0.25"
+            value="1"
+          />
+          <span class="velocita-valore" id="bollaVelocitaAnimazione"></span>
+        </div>
       </div>
 
       <div id="controlliSatellite" class="controlli-satellite" hidden>
@@ -1124,8 +1141,20 @@
 
       // Opacita' di default alla prima accensione di un campo (poi
       // regolabile dal cursore); il satellite parte piu' opaco degli altri.
+      // Opacita' di default alla prima accensione di un campo (poi
+      // regolabile dal cursore); il satellite parte piu' opaco degli altri.
       function opacitaPredefinita(campo) {
         return campo === "satellite" ? 0.95 : 0.75;
+      }
+
+      // Ordine gerarchico degli overlay 2D quando piu' campi sono attivi
+      // insieme: il satellite va sempre sotto tutti, il radar (SRI) sempre
+      // sopra tutti; gli altri campi non hanno una preferenza reciproca e
+      // condividono lo stesso livello intermedio.
+      function zIndexCampo(campo) {
+        if (campo === "satellite") return 1;
+        if (campo === "radar") return 3;
+        return 2;
       }
 
       // Mostra un campo attivo all'istante condiviso: trova il frame proprio
@@ -1154,6 +1183,7 @@
             livelliCampo[campo] = L.imageOverlay(frame.src, lista.bounds, {
               opacity: opacitaCampo[campo] ?? opacitaPredefinita(campo),
               interactive: false,
+              zIndex: zIndexCampo(campo),
               // Idee per interazioni:
               // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
               // Lettura del valore sotto al cursore: più interessante ma complesso.
@@ -1594,12 +1624,12 @@
         elFinestra.style.top = baseY + offset + "px";
 
         const stato = {
-        serie: serieAttiva, // la SERIE attiva al momento dell'apertura
-        elFinestra,
-        elSelettoreSerie,
-        elGrafico,
-        grafico: null,
-        appenaCreato: false,
+          serie: serieAttiva, // la SERIE attiva al momento dell'apertura
+          elFinestra,
+          elSelettoreSerie,
+          elGrafico,
+          grafico: null,
+          appenaCreato: false,
         };
         finestreAperte.set(s.codice, stato);
 
@@ -1967,6 +1997,15 @@
       const bottoneColorbarIcona = document.getElementById(
         "bottoneColorbarIcona",
       );
+      const controlloVelocitaAnimazione = document.getElementById(
+        "controlloVelocitaAnimazione",
+      );
+      const cursoreVelocitaAnimazione = document.getElementById(
+        "cursoreVelocitaAnimazione",
+      );
+      const bollaVelocitaAnimazione = document.getElementById(
+        "bollaVelocitaAnimazione",
+      );
       let serieAttiva = null; // nessuna serie 1D selezionata di default
       let campiAttivi = []; // fino a MAX_CAMPI_ATTIVI campi 2D attivi insieme
       const MAX_CAMPI_ATTIVI = 3;
@@ -2229,8 +2268,15 @@
       // Non ha senso per le stazioni (1D): riguarda solo i campi temporali
       // (radar/riflettivita/fulmini).
       const ANIMAZIONE_FINESTRA_MIN = 90; // N: quanti minuti indietro copre il loop
-      const ANIMAZIONE_INTERVALLO_MS = 500; // ~2 frame al secondo
+      const ANIMAZIONE_INTERVALLO_BASE_MS = 500; // ~2 frame al secondo, a velocita' 1x (valore di default del cursore)
       const ANIMAZIONE_CONTROLLO_NOVITA_MS = 15000; // ogni quanto, durante il loop, controllo nuovi frame (solo se sul bordo "live")
+
+      let velocitaAnimazione = 1; // moltiplicatore scelto col cursore: <1 rallenta, >1 accelera
+
+      // Intervallo (ms) effettivo tra un frame e il successivo, dato il moltiplicatore corrente.
+      function intervalloAnimazioneMs() {
+        return ANIMAZIONE_INTERVALLO_BASE_MS / velocitaAnimazione;
+      }
 
       let animazioneAttiva = false;
       let animazioneTimerFrame = null;
@@ -2299,12 +2345,13 @@
         bottoneAnimazione.classList.add("attivo");
         bottoneAnimazioneIcona.src =
           "{{ url_for('static', filename='icone/pausa.svg') }}";
+        controlloVelocitaAnimazione.hidden = false;
 
         mostraIstante(listaIstanti.indexOf(finestraAnimazione[0]));
 
         animazioneTimerFrame = setInterval(
           animazioneAvanzaFrame,
-          ANIMAZIONE_INTERVALLO_MS,
+          intervalloAnimazioneMs(),
         );
         if (animazioneSuBordoLive) {
           animazioneTimerNovita = setInterval(
@@ -2319,6 +2366,7 @@
         bottoneAnimazione.classList.remove("attivo");
         bottoneAnimazioneIcona.src =
           "{{ url_for('static', filename='icone/play.svg') }}";
+        controlloVelocitaAnimazione.hidden = true;
         clearInterval(animazioneTimerFrame);
         clearInterval(animazioneTimerNovita);
         animazioneTimerFrame = null;
@@ -2407,6 +2455,29 @@
       bottoneAnimazione.addEventListener("click", () => {
         if (animazioneAttiva) fermaAnimazione();
         else avviaAnimazione();
+      });
+
+      // Etichetta "×" accanto al cursore (es. "1.5×"), senza zeri superflui.
+      function aggiornaEtichettaVelocita() {
+        bollaVelocitaAnimazione.textContent =
+          velocitaAnimazione.toFixed(2).replace(/0+$/, "").replace(/\.$/, "") +
+          "×";
+      }
+      aggiornaEtichettaVelocita();
+
+      cursoreVelocitaAnimazione.addEventListener("input", () => {
+        velocitaAnimazione = parseFloat(cursoreVelocitaAnimazione.value);
+        aggiornaEtichettaVelocita();
+        // Se l'animazione e' gia' in corso, il nuovo intervallo si applica
+        // subito riavviando solo il timer dei frame (non quello di
+        // controllo novita', che resta sul suo ciclo indipendente).
+        if (animazioneAttiva) {
+          clearInterval(animazioneTimerFrame);
+          animazioneTimerFrame = setInterval(
+            animazioneAvanzaFrame,
+            intervalloAnimazioneMs(),
+          );
+        }
       });
 
       bottoneColorbar.addEventListener("click", () => {

@@ -533,6 +533,39 @@ body {
   opacity: 1;
 }
 
+.velocita-animazione {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(228, 231, 235, 0.25);
+}
+
+/* La regola .velocita-animazione sovrascriverebbe l'attributo hidden: lo ripristino */
+.velocita-animazione[hidden] {
+  display: none;
+}
+
+.velocita-etichetta {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa5b1;
+  white-space: nowrap;
+}
+
+.velocita-animazione input[type="range"] {
+  width: 90px;
+  cursor: pointer;
+}
+
+.velocita-valore {
+  font: 600 13px system-ui;
+  min-width: 34px;
+  text-align: right;
+}
+
 .colorbar-contenitore {
   display: flex;
   gap: 10px;
