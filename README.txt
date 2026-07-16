@@ -18,7 +18,8 @@ README.txt
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
     Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
     Aggiungi IRENE.
-    Aggiungi previsione dell'Heat Index dai campi interpolati di QRF Tmean e QRF RH.
+    Aggiungi un controllo sulla velocità della Animazione.
+    Gerarchia: Satellite sempre sotto e radar sempre sopra. Gli altri non importa.
 
 --- Altro
     Logo meteobricchi.
