@@ -366,20 +366,37 @@
         </div>
       </div>
 
-      <div id="controlliSatellite" class="controlli-satellite" hidden>
-        <label>
-          <input
-            type="radio"
-            name="prodottoSatellite"
-            value="geocolour"
-            checked
-          />
-          Geocolour
-        </label>
-        <label>
-          <input type="radio" name="prodottoSatellite" value="sandwich" />
-          Sandwich
-        </label>
+      <div class="controlli-angolo-destro">
+        <div id="controlliSatellite" class="controlli-satellite" hidden>
+          <label>
+            <input
+              type="radio"
+              name="prodottoSatellite"
+              value="geocolour"
+              checked
+            />
+            Geocolour
+          </label>
+          <label>
+            <input type="radio" name="prodottoSatellite" value="sandwich" />
+            Sandwich
+          </label>
+        </div>
+
+        <div id="controlliFulminiTipo" class="controlli-fulmini-tipo" hidden>
+          <label>
+            <input type="radio" name="tipoFulmini" value="tutti" checked />
+            Tutti
+          </label>
+          <label>
+            <input type="radio" name="tipoFulmini" value="C" />
+            Cloud-to-cloud (C)
+          </label>
+          <label>
+            <input type="radio" name="tipoFulmini" value="G" />
+            Cloud-to-ground (G)
+          </label>
+        </div>
       </div>
 
       <div class="controlli-campo-attivo">
@@ -633,7 +650,7 @@
           nome: "Tutta bianca",
           strati: [
             {
-              url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+              url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
               opzioni: {
                 maxZoom: 19,
                 attribution:
@@ -647,7 +664,7 @@
           nome: "Tutta nera",
           strati: [
             {
-              url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+              url: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
               opzioni: {
                 maxZoom: 19,
                 attribution:
@@ -865,6 +882,23 @@
               accendiCampoTemporale("satellite");
           }),
         );
+
+      const controlliFulminiTipo = document.getElementById(
+        "controlliFulminiTipo",
+      );
+      document.querySelectorAll('input[name="tipoFulmini"]').forEach((radio) =>
+        radio.addEventListener("change", () => {
+          if (!radio.checked) return;
+          tipoFulminiFiltro = radio.value;
+          // A differenza del prodotto satellite, qui non serve richiedere
+          // nulla al server: "tipo" e' gia' nei punti scaricati, e' solo
+          // un filtro di visualizzazione. Ridisegno col filtro nuovo se
+          // fulmini e' gia' attivo e c'e' un istante mostrato.
+          if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
+            mostraFrameCampo("fulmini", listaIstanti[indiceIstante]);
+          }
+        }),
+      );
       // Fino a 3 colorbar mostrabili insieme (una per ciascun campo attivo
       // che ne ha una, radar/riflettivita/vert_int_liq/caldo_obs/freddo_obs; fulmini
       // e satellite non ne hanno)
@@ -977,6 +1011,11 @@
       // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
       // ritrova l'ultima scelta fatta.
       let prodottoSatellite = "geocolour";
+
+      // Filtro sul tipo di fulmine (COMMT, rinominato "tipo"): "tutti",
+      // "C" (cloud-to-cloud) o "G" (cloud-to-ground). Come prodottoSatellite,
+      // non si azzera quando il campo si spegne.
+      let tipoFulminiFiltro = "tutti";
 
       // Palette fulmini in base all'eta' (CAMPO di tipo "punti"): dal viola
       // scuro (fulmine piu' vecchio nel gruppo caricato) al giallo (fulmine
@@ -1516,25 +1555,23 @@
             if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
             const gruppo = L.layerGroup();
 
-            // Estremi della palette ancorati a "Data" (l'istante mostrato in
-            // alto, tAncoraUTC) e "Data - finestra", non al range effettivo
-            // dei punti caricati: il fulmine "adesso" (giallo pieno) e'
-            // sempre l'istante di riferimento stesso, quello "vecchio" (blu
-            // pieno) e' sempre l'inizio della finestra di cumulata,
-            // indipendentemente da quando sono davvero avvenuti i fulmini
-            // nel gruppo caricato.
+            // Filtro per tipo di fulmine (COMMT/"tipo"): puro filtro di
+            // visualizzazione, i punti scaricati ce l'hanno gia' (se il CSV
+            // ce l'ha - vedi /fulmini/dati* in app.py).
+            const puntiFiltrati =
+              campo === "fulmini" && tipoFulminiFiltro !== "tutti"
+                ? punti.filter((p) => p.tipo === tipoFulminiFiltro)
+                : punti;
+
+            // Estremi della palette ancorati a "Data" ...
             const riferimentoSec =
               tAncoraUTC !== null ? tAncoraUTC / 1000 : null;
             const finestraSec = finestraFulminiMin * 60;
             const minSec =
               riferimentoSec !== null ? riferimentoSec - finestraSec : null;
 
-            // Ordino per "t" crescente (piu' vecchio prima) cosi' che,
-            // aggiungendoli in quest'ordine al layer, i fulmini piu' recenti
-            // (aggiunti per ultimi) risultino sempre in primo piano sopra
-            // quelli piu' vecchi in caso di sovrapposizione. I punti senza
-            // "t" valido restano in fondo (comportamento di fallback).
-            const puntiOrdinati = punti.slice().sort((a, b) => {
+            // Ordino per "t" crescente ...
+            const puntiOrdinati = puntiFiltrati.slice().sort((a, b) => {
               const ta = typeof a.t === "number" ? a.t : -Infinity;
               const tb = typeof b.t === "number" ? b.t : -Infinity;
               return ta - tb;
@@ -1775,6 +1812,7 @@
         const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
         controlliRadar.hidden = !temporaliAttivi;
         controlliSatellite.hidden = !campiAttivi.includes("satellite");
+        controlliFulminiTipo.hidden = !campiAttivi.includes("fulmini");
         if (!temporaliAttivi) return;
 
         if (listaIstanti.length > 0) {
@@ -2393,7 +2431,7 @@
         "mappa",
         document.getElementById("scelteMappaLayer"),
         DEFINIZIONI_MAPPE,
-        "03",
+        "04",
         impostaMappa,
       );
 

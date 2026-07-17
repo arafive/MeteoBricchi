@@ -15,12 +15,10 @@ README.txt
     Tasto destro: avanti di un giorno
 
 --- Grafici 2D
-    Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
     Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
     Aggiungi IRENE.
-    Aggiungi un controllo sulla velocità della Animazione.
-    Gerarchia: Satellite sempre sotto e radar sempre sopra. Gli altri non importa.
-    Al campo fulmini aggiungi una barra "Cumulata"
+    Aggiungi un controllo sulla velocità della Animazione. -> min 0.25, max 2.0
+    Vorrei aggiungere una flag come su Satellite. Vorrei poter mostrare o tutti i fulmini, solo cloud-to-cloud (COMMT = C), solo cloud-to-ground (COMMT = G)
 
 --- Altro
     Logo meteobricchi.
@@ -35,7 +33,6 @@ README.txt
 
 Avviare flask in background:
 nohup flask run --host=0.0.0.0 --port=5009 > log/log_web.log 2>&1 &
-nohup flask run --host=0.0.0.0 --port=5010 > log/log_web_casa.log 2>&1 &
 
 ip di questo computer ARPAL: 10.24.50.225 (trovato con >>> hostname -I)
 Link: http://10.24.50.225:5009
