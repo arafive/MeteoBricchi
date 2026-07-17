@@ -628,6 +628,34 @@
             },
           ],
         },
+        {
+          id: "11",
+          nome: "Tutta bianca",
+          strati: [
+            {
+              url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              },
+            },
+          ],
+        },
+        {
+          id: "12",
+          nome: "Tutta nera",
+          strati: [
+            {
+              url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+              opzioni: {
+                maxZoom: 19,
+                attribution:
+                  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              },
+            },
+          ],
+        },
       ];
 
       let stratiMappaAttivi = []; // layer Leaflet attualmente sulla mappa (0 o piu')
