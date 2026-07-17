@@ -17,8 +17,6 @@ README.txt
 --- Grafici 2D
     Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
     Aggiungi IRENE.
-    Aggiungi un controllo sulla velocità della Animazione. -> min 0.25, max 2.0
-    Vorrei aggiungere una flag come su Satellite. Vorrei poter mostrare o tutti i fulmini, solo cloud-to-cloud (COMMT = C), solo cloud-to-ground (COMMT = G)
 
 --- Altro
     Logo meteobricchi.
