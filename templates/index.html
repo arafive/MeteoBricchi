@@ -456,6 +456,7 @@
         zoomControl: false,
         keyboardPanDelta: 0, // le frecce non spostano la mappa (le usa il radar)
         wheelPxPerZoomLevel: 120, // default 60: più alto = zoom più "morbido" per scatto di rotella
+        preferCanvas: true, // i layer vettoriali (fulmini, pallini stazioni, shapefile) vanno su un unico <canvas> invece che un nodo SVG a elemento: molto più scalabile con tanti punti (es. cumulate fulmini larghe)
       }).setView([44.2, 8.75], 9);
 
       const JAWG_TOKEN =
@@ -717,7 +718,12 @@
       // (non esclusivi come mappa/sentieri: se ne possono attivare piu' d'uno).
       const DEFINIZIONI_SHAPEFILE = [
         { id: "regioni", nome: "Regioni", colore: "#ffffff", spessore: 2.5 },
-        { id: "comprensori", nome: "Comprensori", colore: "#9467bd", spessore: 2 },
+        {
+          id: "comprensori",
+          nome: "Comprensori",
+          colore: "#9467bd",
+          spessore: 2,
+        },
         { id: "bacini", nome: "Bacini", colore: "#17becf", spessore: 2 },
         { id: "comuni", nome: "Comuni", colore: "#d62728", spessore: 2 },
         { id: "aree", nome: "Aree", colore: "#2ca02c", spessore: 2 },
@@ -880,7 +886,19 @@
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
         },
-        fulmini: { tipo: "punti", etichetta: "Fulmini" },
+        fulmini: {
+          tipo: "punti",
+          etichetta: "Fulmini",
+          // A differenza delle altre colorbar (percorso fisso), qui serve
+          // un percorso diverso per ciascuna finestra di cumulata: e' una
+          // funzione, non una stringa (vedi aggiornaColorbar). I file sono
+          // in static/icone/colorbar_fulmini_<minuti>.png, uno per ciascun
+          // valore di FINESTRA_FULMINI_VALORI_MIN.
+          colorbar: () =>
+            "{{ url_for('static', filename='icone/colorbar_fulmini_') }}" +
+            finestraFulminiMin +
+            ".png",
+        },
         caldo_obs: {
           tipo: "immagine",
           etichetta: "Heat Index Osservato",
@@ -932,12 +950,206 @@
       // ritrova l'ultima scelta fatta.
       let prodottoSatellite = "geocolour";
 
-      // Icona dei pallini fulmine (CAMPO di tipo "punti")
-      const iconaFulmine = L.icon({
-        iconUrl: "{{ url_for('static', filename='icone/fulmini.svg') }}",
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
+      // Palette fulmini in base all'eta' (CAMPO di tipo "punti"): dal viola
+      // scuro (fulmine piu' vecchio nel gruppo caricato) al giallo (fulmine
+      // piu' recente). Provvisoria: verra' sostituita da una palette
+      // caricata come per radar/altri campi.
+      const PALETTE_FULMINI = [
+        "#0D0887",
+        "#4C02A1",
+        "#7E03A8",
+        "#A92395",
+        "#CC4678",
+        "#E56B5D",
+        "#F89441",
+        "#FDC328",
+        "#F0F921",
+      ];
+
+      // Converte un colore esadecimale "#RRGGBB" in {r,g,b} (0-255).
+      function analizzaColoreEsadecimale(hex) {
+        const v = parseInt(hex.slice(1), 16);
+        return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+      }
+      const PALETTE_FULMINI_RGB = PALETTE_FULMINI.map(
+        analizzaColoreEsadecimale,
+      );
+
+      // Interpolazione cubica di Catmull-Rom su un singolo canale (t: 0..1
+      // fra p1 e p2, p0/p3 sono i punti prima/dopo per la curvatura). A
+      // differenza dell'interpolazione lineare a tratti, la curva risultante
+      // e' liscia (nessun cambio di pendenza brusco nei punti di controllo),
+      // pur passando esattamente per tutti i colori della palette.
+      function catmullRom(p0, p1, p2, p3, t) {
+        const t2 = t * t;
+        const t3 = t2 * t;
+        return (
+          0.5 *
+          (2 * p1 +
+            (-p0 + p2) * t +
+            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+            (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+        );
+      }
+      function canale255(v) {
+        return Math.max(0, Math.min(255, Math.round(v)));
+      }
+
+      // Colore di un fulmine dato quanto e' "recente" (frazione 0..1: 0 =
+      // il piu' vecchio del gruppo caricato, 1 = il piu' recente).
+      function coloreFulmine(frazione) {
+        const f = Math.min(1, Math.max(0, frazione));
+        const ultimo = PALETTE_FULMINI_RGB.length - 1;
+        const n = ultimo; // numero di segmenti fra le tappe della palette
+        const posizione = f * n;
+        const i = Math.min(n - 1, Math.floor(posizione));
+        const t = posizione - i;
+
+        const p0 = PALETTE_FULMINI_RGB[Math.max(0, i - 1)];
+        const p1 = PALETTE_FULMINI_RGB[i];
+        const p2 = PALETTE_FULMINI_RGB[i + 1];
+        const p3 = PALETTE_FULMINI_RGB[Math.min(ultimo, i + 2)];
+
+        const r = canale255(catmullRom(p0.r, p1.r, p2.r, p3.r, t));
+        const g = canale255(catmullRom(p0.g, p1.g, p2.g, p3.g, t));
+        const b = canale255(catmullRom(p0.b, p1.b, p2.b, p3.b, t));
+        return "rgb(" + r + "," + g + "," + b + ")";
+      }
+
+      // Icona a "X" per i fulmini di tipo "G" (COMMT), colorata come il
+      // pallino in base all'eta'; il bordo nero e' simulato con text-shadow
+      // (qui non c'e' uno stroke SVG/canvas come per circleMarker). Un po'
+      // piu' grande del pallino (stilePallino.radius*2), per pareggiare
+      // l'occhio: il glifo "×" a dimensioni molto piccole risulta poco
+      // leggibile.
+      // Spessore del bordo nero, condiviso fra il pallino (circleMarker) e
+      // l'alone della X (vedi iconaFulmineX): un unico numero da regolare.
+      const SPESSORE_BORDO_FULMINE = 0.5;
+
+      // Icona a "X" per i fulmini di tipo "G" (COMMT): un piccolo SVG con
+      // due linee incrociate, non un carattere di testo. Un glifo "×" a
+      // font-size uguale al diametro del pallino resta comunque visivamente
+      // piu' piccolo di un cerchio pieno (i caratteri hanno margini interni
+      // che non vengono "riempiti"): disegnando le linee a mano controlliamo
+      // esattamente quanto spazio occupano, con lo stesso diametro del
+      // pallino (stilePallino.radius*2). Il bordo nero e' un'altra coppia di
+      // linee piu' spesse disegnata sotto, a simulare lo stroke di
+      // circleMarker.
+      function iconaFulmineX(colore) {
+        const d = stilePallino.radius * 2; // stesso diametro del pallino
+        const margine = 1; // cosi' le linee non vengono tagliate ai bordi
+        const spessoreLinea = 2.5;
+        const spessoreBordoTotale = spessoreLinea + SPESSORE_BORDO_FULMINE * 2;
+        const a = margine;
+        const b = d - margine;
+        return L.divIcon({
+          className: "", // altrimenti Leaflet aggiunge lo sfondo bianco di default
+          html:
+            '<svg width="' +
+            d +
+            '" height="' +
+            d +
+            '" viewBox="0 0 ' +
+            d +
+            " " +
+            d +
+            '">' +
+            '<line x1="' +
+            a +
+            '" y1="' +
+            a +
+            '" x2="' +
+            b +
+            '" y2="' +
+            b +
+            '" stroke="#000" stroke-width="' +
+            spessoreBordoTotale +
+            '" stroke-linecap="round" />' +
+            '<line x1="' +
+            b +
+            '" y1="' +
+            a +
+            '" x2="' +
+            a +
+            '" y2="' +
+            b +
+            '" stroke="#000" stroke-width="' +
+            spessoreBordoTotale +
+            '" stroke-linecap="round" />' +
+            '<line x1="' +
+            a +
+            '" y1="' +
+            a +
+            '" x2="' +
+            b +
+            '" y2="' +
+            b +
+            '" stroke="' +
+            colore +
+            '" stroke-width="' +
+            spessoreLinea +
+            '" stroke-linecap="round" />' +
+            '<line x1="' +
+            b +
+            '" y1="' +
+            a +
+            '" x2="' +
+            a +
+            '" y2="' +
+            b +
+            '" stroke="' +
+            colore +
+            '" stroke-width="' +
+            spessoreLinea +
+            '" stroke-linecap="round" />' +
+            "</svg>",
+          iconSize: [d, d],
+          iconAnchor: [d / 2, d / 2],
+        });
+      }
+
+      // Cumulata fulmini: quanti minuti indietro rispetto al frame mostrato
+      // vengono uniti i CSV (uno ogni 5 minuti, vedi CARTELLA_FULMINI in
+      // app.py). Il cursore sceglie fra un set fisso di finestre (la
+      // posizione e' l'indice in questo array), da 5 minuti (un solo
+      // file, il comportamento di sempre) fino a 24 ore.
+      const FINESTRA_FULMINI_VALORI_MIN = [5, 30, 60, 180, 360, 1440];
+      let finestraFulminiMin = 5; // minuti di cumulata correnti
+
+      function posizioneAFinestraFulmini(posizione) {
+        return FINESTRA_FULMINI_VALORI_MIN[posizione] ?? 5;
+      }
+
+      function finestraFulminiAPosizione(minuti) {
+        const indice = FINESTRA_FULMINI_VALORI_MIN.indexOf(minuti);
+        return indice === -1 ? 0 : indice;
+      }
+
+      function formattaFinestraFulmini(minuti) {
+        return minuti < 60 ? minuti + " min" : minuti / 60 + " h";
+      }
+
+      // Versione compatta (senza spazio) della cumulata, per l'etichetta
+      // tra parentesi accanto al nome del campo: es. "5min", "3h".
+      function formattaFinestraFulminiCompatta(minuti) {
+        return minuti < 60 ? minuti + "min" : minuti / 60 + "h";
+      }
+
+      // Imposta il testo di una ".radar-colonna-nome": per i fulmini
+      // aggiunge, dentro uno <span> dedicato, la finestra di cumulata tra
+      // parentesi (es. "Fulmini (5min)"). Lo span serve perche' il nome e'
+      // in maiuscolo via CSS (text-transform: uppercase): senza, anche
+      // "(5min)" diventerebbe "(5MIN)".
+      function impostaEtichettaColonna(elNome, campo) {
+        elNome.textContent = DESCRITTORI_CAMPO[campo].etichetta;
+        if (campo === "fulmini") {
+          const finestra = document.createElement("span");
+          finestra.className = "radar-colonna-finestra";
+          finestra.textContent =
+            " (" + formattaFinestraFulminiCompatta(finestraFulminiMin) + ")";
+          elNome.appendChild(finestra);
+        }
+      }
 
       // Estrae l'istante (timestamp ms) da un nome frame "AAAA-MM-GG_HHMM...".
       // null se il nome non e' nel formato atteso.
@@ -951,6 +1163,26 @@
           Number(m[4]),
           Number(m[5]),
         ).getTime();
+      }
+
+      // Come parseIstante, ma interpreta i numeri come UTC (Date.UTC)
+      // invece che ora locale del browser. I nomi dei frame fulmini sono
+      // generati da adesso_0_UTC (vedi lo script di generazione): sono
+      // percio' UTC "veri", come DTRFSEC/"t". parseIstante va bene per le
+      // differenze fra due nomi (l'eventuale sfasamento si semplifica), ma
+      // per confrontare l'istante nominale del frame con "t" serve questa
+      // versione, altrimenti si introduce uno sfasamento pari al fuso
+      // orario locale del browser.
+      function parseIstanteUTC(nome) {
+        const m = nome.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/);
+        if (!m) return null;
+        return Date.UTC(
+          Number(m[1]),
+          Number(m[2]) - 1,
+          Number(m[3]),
+          Number(m[4]),
+          Number(m[5]),
+        );
       }
 
       // Come formattaDataOraLocale, ma senza arrotondare: usata per riflettere
@@ -1021,7 +1253,7 @@
 
             const nome = document.createElement("div");
             nome.className = "radar-colonna-nome";
-            nome.textContent = DESCRITTORI_CAMPO[campo].etichetta;
+            impostaEtichettaColonna(nome, campo);
 
             const istanteEl = document.createElement("div");
             istanteEl.className = "radar-colonna-istante";
@@ -1030,6 +1262,8 @@
 
             if (DESCRITTORI_CAMPO[campo].tipo === "immagine") {
               colonna.appendChild(creaControlloOpacita(campo));
+            } else if (campo === "fulmini") {
+              colonna.appendChild(creaControlloCumulataFulmini());
             }
 
             radarEtichette.appendChild(colonna);
@@ -1139,6 +1373,26 @@
         ottieniFrameCampo(campo, indice);
       }
 
+      // Cumulata fulmini con finestra > 5 minuti: servono piu' CSV. Invece
+      // di una richiesta HTTP per file (fino a ~288 per 24h, che da sole
+      // intasavano il server), un solo giro a /fulmini/dati_intervallo con
+      // tutti i nomi uniti, che legge e concatena i CSV lato server. Cache
+      // per lista di nomi, cosi' non si ripete la richiesta tornando sulla
+      // stessa finestra.
+      const cacheIntervalloFulmini = new Map(); // "nome1,nome2,..." -> Promise<punti>
+
+      function ottieniPuntiIntervalloFulmini(nomi) {
+        const chiave = nomi.join(",");
+        let voce = cacheIntervalloFulmini.get(chiave);
+        if (!voce) {
+          voce = fetch(
+            "/fulmini/dati_intervallo?nomi=" + encodeURIComponent(chiave),
+          ).then((r) => r.json());
+          cacheIntervalloFulmini.set(chiave, voce);
+        }
+        return voce;
+      }
+
       // Opacita' di default alla prima accensione di un campo (poi
       // regolabile dal cursore); il satellite parte piu' opaco degli altri.
       // Opacita' di default alla prima accensione di un campo (poi
@@ -1195,22 +1449,96 @@
             frame.addEventListener("load", disegna, { once: true });
           }
         } else {
-          frame.then((punti) => {
+          // "punti" (fulmini): con la cumulata a 5 minuti (default) e' il
+          // solo frame piu' vicino, come sempre, servito dalla cache
+          // per-frame (variabile "frame", gia' calcolata sopra); con una
+          // finestra piu' ampia servono piu' CSV (uno ogni 5 minuti),
+          // caricati con UNA sola richiesta a /fulmini/dati_intervallo
+          // invece di una per file. tAncora (istante nominale del frame, ms,
+          // ora locale via parseIstante) serve per raccogliere i nomi nella
+          // finestra: essendo una differenza fra due parseIstante, l'eventuale
+          // sfasamento si semplifica. tAncoraUTC (vero UTC, via
+          // parseIstanteUTC) e' invece il riferimento per colorare i fulmini
+          // in base all'eta' (vedi coloreFulmine piu' sopra), perche' li' si
+          // confronta con "t"/DTRFSEC, che e' vero UTC epoch.
+          const tAncora = parseIstante(lista.nomi[indice]);
+          const tAncoraUTC = parseIstanteUTC(lista.nomi[indice]);
+          const nomiDaCaricare = [lista.nomi[indice]];
+          if (
+            campo === "fulmini" &&
+            finestraFulminiMin > 5 &&
+            tAncora !== null
+          ) {
+            const finestraMs = finestraFulminiMin * 60 * 1000;
+            for (let i = indice - 1; i >= 0; i--) {
+              const t = parseIstante(lista.nomi[i]);
+              if (t === null) continue;
+              if (tAncora - t > finestraMs) break; // nomi ordinati: posso fermarmi
+              nomiDaCaricare.push(lista.nomi[i]);
+            }
+          }
+
+          const promessaPunti =
+            nomiDaCaricare.length === 1
+              ? frame // singolo file: gia' in corso/cache via ottieniFrameCampo
+              : ottieniPuntiIntervalloFulmini(nomiDaCaricare);
+
+          promessaPunti.then((punti) => {
             if (mioToken !== richiestaCampo[campo]) return;
             if (livelliCampo[campo]) mappa.removeLayer(livelliCampo[campo]);
             const gruppo = L.layerGroup();
 
-            punti.forEach((p) =>
-              L.marker([p.lat, p.lon], {
-                icon: iconaFulmine,
-                interactive: false,
-                // Idee per interazioni:
-                // Tooltip al passaggio del mouse con data/ora esatta del fulmine (la stessa logica di tooltip-stazione già in style.css).
-                // Popup al click con le coordinate precise.
-                // Se il CSV dei fulmini ha altre colonne oltre a LON/LAT (es. intensità in kA, polarità, tipo IC/CG) potremmo mostrarle nel tooltip/popup — ma al momento /fulmini/dati/<indice> in app.py legge solo ["LON", "LAT"], quindi andrebbe esteso lato backend se vuoi includerle.
-                // Come per le stazioni, converrebbe aggiungere un cerchio invisibile più grande sovrapposto all'icona (22×22 px è piccola per un click preciso).
-              }).addTo(gruppo),
-            );
+            // Estremi della palette ancorati a "Data" (l'istante mostrato in
+            // alto, tAncoraUTC) e "Data - finestra", non al range effettivo
+            // dei punti caricati: il fulmine "adesso" (giallo pieno) e'
+            // sempre l'istante di riferimento stesso, quello "vecchio" (blu
+            // pieno) e' sempre l'inizio della finestra di cumulata,
+            // indipendentemente da quando sono davvero avvenuti i fulmini
+            // nel gruppo caricato.
+            const riferimentoSec =
+              tAncoraUTC !== null ? tAncoraUTC / 1000 : null;
+            const finestraSec = finestraFulminiMin * 60;
+            const minSec =
+              riferimentoSec !== null ? riferimentoSec - finestraSec : null;
+
+            // Ordino per "t" crescente (piu' vecchio prima) cosi' che,
+            // aggiungendoli in quest'ordine al layer, i fulmini piu' recenti
+            // (aggiunti per ultimi) risultino sempre in primo piano sopra
+            // quelli piu' vecchi in caso di sovrapposizione. I punti senza
+            // "t" valido restano in fondo (comportamento di fallback).
+            const puntiOrdinati = punti.slice().sort((a, b) => {
+              const ta = typeof a.t === "number" ? a.t : -Infinity;
+              const tb = typeof b.t === "number" ? b.t : -Infinity;
+              return ta - tb;
+            });
+
+            puntiOrdinati.forEach((p) => {
+              let colore = PALETTE_FULMINI[PALETTE_FULMINI.length - 1];
+              if (riferimentoSec !== null && typeof p.t === "number") {
+                const frazione = (p.t - minSec) / finestraSec;
+                colore = coloreFulmine(frazione);
+              }
+              if (p.tipo === "G") {
+                L.marker([p.lat, p.lon], {
+                  icon: iconaFulmineX(colore),
+                  interactive: false,
+                }).addTo(gruppo);
+              } else {
+                L.circleMarker(
+                  [p.lat, p.lon],
+                  Object.assign({}, stilePallino, {
+                    fillColor: colore,
+                    weight: SPESSORE_BORDO_FULMINE, // bordo sottile, condiviso con l'alone della X
+                    interactive: false,
+                    // Idee per interazioni:
+                    // Tooltip al passaggio del mouse con data/ora esatta del fulmine (la stessa logica di tooltip-stazione già in style.css).
+                    // Popup al click con le coordinate precise.
+                    // Se il CSV dei fulmini ha altre colonne oltre a LON/LAT/DTRFSEC/COMMT (es. intensità in kA, polarità) potremmo mostrarle nel tooltip/popup — andrebbe esteso anche lato backend.
+                    // Come per le stazioni, converrebbe aggiungere un cerchio invisibile più grande sovrapposto al pallino per un click più preciso.
+                  }),
+                ).addTo(gruppo);
+              }
+            });
 
             livelliCampo[campo] = gruppo.addTo(mappa);
           });
@@ -1257,7 +1585,10 @@
           return;
         }
         const colorbarAttive = campiAttivi
-          .map((c) => DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].colorbar)
+          .map((c) => {
+            const cb = DESCRITTORI_CAMPO[c] && DESCRITTORI_CAMPO[c].colorbar;
+            return typeof cb === "function" ? cb() : cb;
+          })
           .filter(Boolean);
         colorbarEl.forEach((el, i) => {
           if (colorbarAttive[i]) {
@@ -1320,6 +1651,73 @@
             livelliCampo[campo].setOpacity(opacitaCampo[campo]);
           }
           mostraBolla();
+        });
+        cursore.addEventListener("pointerdown", mostraBolla);
+        cursore.addEventListener("pointerup", nascondiBolla);
+        cursore.addEventListener("blur", nascondiBolla);
+
+        riga.append(cursore, bolla);
+        return riga;
+      }
+
+      // Stessa logica di posizionaBollaOpacita, ma l'etichetta mostra i
+      // minuti/ore di cumulata invece della percentuale.
+      function posizionaBollaFinestraFulmini(cursore, bolla) {
+        const min = parseFloat(cursore.min);
+        const max = parseFloat(cursore.max);
+        const percento = (parseFloat(cursore.value) - min) / (max - min);
+        const larghezzaThumb = 14;
+        const xDentroCursore =
+          larghezzaThumb / 2 +
+          percento * (cursore.offsetWidth - larghezzaThumb);
+        bolla.style.left = cursore.offsetLeft + xDentroCursore + "px";
+        bolla.textContent = formattaFinestraFulmini(
+          posizioneAFinestraFulmini(parseFloat(cursore.value)),
+        );
+      }
+
+      // Crea la riga con lo slider di cumulata dei fulmini, stessa veste
+      // grafica (".opacita-campo") del cursore di opacita' dei campi
+      // immagine. Il cursore lavora per POSIZIONE (indice in
+      // FINESTRA_FULMINI_VALORI_MIN), convertita in minuti da
+      // posizioneAFinestraFulmini.
+      function creaControlloCumulataFulmini() {
+        const riga = document.createElement("div");
+        riga.className = "opacita-campo";
+
+        const cursore = document.createElement("input");
+        cursore.type = "range";
+        cursore.min = "0";
+        cursore.max = String(FINESTRA_FULMINI_VALORI_MIN.length - 1);
+        cursore.step = "1";
+        cursore.value = finestraFulminiAPosizione(finestraFulminiMin);
+
+        const bolla = document.createElement("span");
+        bolla.className = "opacita-valore";
+
+        const mostraBolla = () => {
+          posizionaBollaFinestraFulmini(cursore, bolla);
+          bolla.classList.add("visibile");
+        };
+        const nascondiBolla = () => bolla.classList.remove("visibile");
+
+        cursore.addEventListener("input", () => {
+          finestraFulminiMin = posizioneAFinestraFulmini(
+            parseFloat(cursore.value),
+          );
+          mostraBolla();
+          // Aggiorna subito l'etichetta "Fulmini (Xmin/Xh)" accanto al nome.
+          const elNome = riga
+            .closest(".radar-colonna")
+            .querySelector(".radar-colonna-nome");
+          if (elNome) impostaEtichettaColonna(elNome, "fulmini");
+          // Se la colorbar e' visibile, mostra quella della nuova finestra.
+          aggiornaColorbar();
+          // Ridisegna subito il campo fulmini con la nuova cumulata, se e'
+          // attivo e c'e' gia' un istante mostrato.
+          if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
+            mostraFrameCampo("fulmini", listaIstanti[indiceIstante]);
+          }
         });
         cursore.addEventListener("pointerdown", mostraBolla);
         cursore.addEventListener("pointerup", nascondiBolla);

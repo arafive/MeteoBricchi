@@ -618,6 +618,12 @@ body {
   letter-spacing: 0.03em;
 }
 
+/* La finestra di cumulata fulmini resta come scritta (es. "5min", "3h"),
+   non maiuscola come il resto del nome del campo */
+.radar-colonna-finestra {
+  text-transform: none;
+}
+
 .radar-colonna-istante {
   font-size: 15px;
 }

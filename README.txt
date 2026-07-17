@@ -11,6 +11,8 @@ README.txt
     Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
     Apri il plot a pop up con CTRL e il mouse sopra il pallino.
     In produzione, colora i pallini se superano certe soglie.
+    Tasto sinistro: indietro di un giorno
+    Tasto destro: avanti di un giorno
 
 --- Grafici 2D
     Fulmini: adesso è a finestra di 5 min ogni 5 min. Meglio a finestra di 30 min?
@@ -18,10 +20,12 @@ README.txt
     Aggiungi IRENE.
     Aggiungi un controllo sulla velocità della Animazione.
     Gerarchia: Satellite sempre sotto e radar sempre sopra. Gli altri non importa.
+    Al campo fulmini aggiungi una barra "Cumulata"
 
 --- Altro
     Logo meteobricchi.
     Pulsante "Ricentra zoom"
+    Metti un pulsante e apre "Alps"
 
 --- Bachi
     In run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere

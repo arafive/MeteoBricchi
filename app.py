@@ -68,8 +68,12 @@ SHAPEFILE_VALIDI = {"aree", "bacini", "comprensori", "comuni", "regioni"}
 # nome -> GeoJSON gia' convertito (i file non cambiano a runtime)
 _cache_shapefile = {}
 
-# Colonne del CSV fulmini gia' moltiplicate per 10000 (interi): vanno
-# riportate in unita' reali dividendo per 10000 prima dell'uso.
+# Colonne LON/LAT/DTRFSEC del CSV fulmini gia' moltiplicate per 10000
+# (interi): vanno riportate in unita' reali (gradi/secondi) dividendo per
+# 10000 prima dell'uso. Prima del fix allo script di generazione, DTRFSEC
+# finiva con un fattore diverso (equivalente a *10) per via di un bug nella
+# conversione data->secondi (vedi cronologia): coi CSV rigenerati dopo il
+# fix, usa correttamente lo stesso fattore di LON/LAT.
 FATTORE_FULMINI = 10000.0
 
 # Valore sentinella usato nei CSV per i dati mancanti
@@ -88,11 +92,21 @@ def trova_frame(cartella, estensione):
 
 
 def trova_per_nome(cartella, nome, estensione):
-    """Cerca <nome>.<estensione> dentro <cartella>/AAAA/MM/GG/ senza
-    assumere che le componenti di data nel nome corrispondano esattamente
-    alla sottocartella in cui il file si trova davvero (puo' non essere
-    cosi' per frame generati/salvati con un piccolo sfasamento rispetto
-    al proprio nome, es. a cavallo di mezzanotte)."""
+    """Cerca <nome>.<estensione> dentro <cartella>/AAAA/MM/GG/. Il nome
+    contiene gia' la data (vedi NOME_FRAME_RE), quindi il percorso diretto
+    <cartella>/AAAA/MM/GG/<nome>.<estensione> e' quasi sempre quello giusto:
+    lo tento per primo (una sola stat, niente glob). Se il file non c'e' li'
+    puo' essere per un piccolo sfasamento fra nome e sottocartella reale
+    (es. frame generati a cavallo di mezzanotte): in quel caso ripiego sulla
+    ricerca esaustiva con la glob, come prima."""
+    m = NOME_FRAME_RE.match(nome)
+    if m:
+        aaaa, mm, gg, _ = m.groups()
+        percorso_diretto = os.path.join(
+            cartella, aaaa, mm, gg, f"{nome}.{estensione}")
+        if os.path.isfile(percorso_diretto):
+            return percorso_diretto
+
     corrispondenze = glob.glob(
         os.path.join(cartella, "*", "*", "*", f"{nome}.{estensione}"))
     return corrispondenze[0] if corrispondenze else None
@@ -479,20 +493,74 @@ def satellite_immagine(nome):
 
 @app.route("/fulmini/dati/<nome>")
 def fulmini_dati(nome):
-    """Punti (lon, lat) di un frame fulmini, identificato per NOME (non per
-    indice): stesso motivo della route /immagine/<nome>.png, un indice ha
-    senso solo riferito alla stessa lista con cui e' stato calcolato e puo'
-    spostarsi se nel frattempo un frame viene aggiunto o rimosso (retention).
-    Nel CSV lon/lat sono interi moltiplicati per 10000: li riporto in gradi
-    dividendo per 10000."""
+    """Punti (lon, lat, t, tipo) di un frame fulmini, identificato per NOME
+    (non per indice): stesso motivo della route /immagine/<nome>.png, un
+    indice ha senso solo riferito alla stessa lista con cui e' stato
+    calcolato e puo' spostarsi se nel frattempo un frame viene aggiunto o
+    rimosso (retention). Nel CSV lon/lat sono interi moltiplicati per
+    FATTORE_FULMINI, DTRFSEC (rinominato "t" nell'output, per alleggerire
+    il JSON su tanti punti) per FATTORE_TEMPO_FULMINI: entrambi vanno
+    riportati in unita' reali dividendo per il rispettivo fattore. COMMT
+    (rinominato "tipo") e' una stringa ("G"/"C"), non va moltiplicata per
+    nessun fattore; e' opzionale perche' i CSV piu' vecchi non ce l'hanno
+    ancora, in quel caso "tipo" e' assente dal punto."""
     if not NOME_FRAME_RE.match(nome):
         abort(404)
     percorso = trova_per_nome(CARTELLA_FULMINI, nome, "csv")
     if percorso is None:
         abort(404)
-    df = pd.read_csv(percorso, usecols=["LON", "LAT"]) / FATTORE_FULMINI
-    punti = df.rename(columns={"LON": "lon", "LAT": "lat"}).to_dict(
-        orient="records")
+    df = pd.read_csv(percorso)
+    lon = (df["LON"] / FATTORE_FULMINI).to_numpy()
+    lat = (df["LAT"] / FATTORE_FULMINI).to_numpy()
+    t = (df["DTRFSEC"] / FATTORE_FULMINI).to_numpy()
+    if "COMMT" in df.columns:
+        tipo = df["COMMT"].to_numpy()
+        punti = [{"lon": lo, "lat": la, "t": tt, "tipo": ti}
+                 for lo, la, tt, ti in zip(lon, lat, t, tipo)]
+    else:
+        punti = [{"lon": lo, "lat": la, "t": tt}
+                 for lo, la, tt in zip(lon, lat, t)]
+    return jsonify(punti)
+
+
+# Limite di sicurezza sul numero di nomi accettati da /fulmini/dati_intervallo:
+# una finestra di 24h a 5 minuti fa ~288 file, questo margine copre anche
+# eventuali cadenze piu' fitte senza lasciare la porta aperta a richieste
+# arbitrariamente grandi.
+MAX_NOMI_INTERVALLO_FULMINI = 400
+
+
+@app.route("/fulmini/dati_intervallo")
+def fulmini_dati_intervallo():
+    """Come /fulmini/dati/<nome> ma per PIU' frame in una volta sola: un
+    solo giro di richiesta invece di uno per file, per non intasare il
+    server quando la cumulata scelta dall'utente copre molti CSV (fino a
+    24h = ~288 file da 5 minuti, vedi FINESTRA_FULMINI_VALORI_MIN nel
+    frontend). Parametro ?nomi=<nome1>,<nome2>,... (stessi nomi restituiti
+    da /fulmini/lista). Nomi non validi o file non trovati (es. per
+    retention) vengono ignorati singolarmente, non fanno fallire l'intera
+    richiesta."""
+    nomi = [n for n in request.args.get("nomi", "").split(",") if n]
+    nomi = nomi[:MAX_NOMI_INTERVALLO_FULMINI]
+    punti = []
+    for nome in nomi:
+        if not NOME_FRAME_RE.match(nome):
+            continue
+        percorso = trova_per_nome(CARTELLA_FULMINI, nome, "csv")
+        if percorso is None:
+            continue
+        df = pd.read_csv(percorso)
+        lon = (df["LON"] / FATTORE_FULMINI).to_numpy()
+        lat = (df["LAT"] / FATTORE_FULMINI).to_numpy()
+        t = (df["DTRFSEC"] / FATTORE_FULMINI).to_numpy()
+        if "COMMT" in df.columns:
+            tipo = df["COMMT"].to_numpy()
+            punti.extend(
+                {"lon": lo, "lat": la, "t": tt, "tipo": ti}
+                for lo, la, tt, ti in zip(lon, lat, t, tipo))
+        else:
+            punti.extend(
+                {"lon": lo, "lat": la, "t": tt} for lo, la, tt in zip(lon, lat, t))
     return jsonify(punti)
 
 
@@ -508,4 +576,4 @@ def shapefile_geojson(nome):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5009)
+    app.run(debug=True, port=5009, threaded=True)
