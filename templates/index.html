@@ -147,6 +147,18 @@
                   alt=""
                 />
               </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="alps"
+                title="Alps by Davide"
+                aria-label="Alps by Davide"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/alps_1.svg') }}"
+                  alt=""
+                />
+              </button>
             </div>
           </div>
 
@@ -857,6 +869,15 @@
         lineCap: "round", // stroke-linecap
         lineJoin: "round", // stroke-linejoin
       };
+
+      // Icona a spillo per le localita' Alps (al posto del pallino usato
+      // dalle stazioni vere)
+      const iconaPinAlps = L.icon({
+        iconUrl: "{{ url_for('static', filename='icone/pin.svg') }}",
+        iconSize: [28, 28],
+        iconAnchor: [14, 28], // la punta dello spillo sul punto esatto
+        tooltipAnchor: [0, -26],
+      });
 
       // Gruppo che contiene i pallini correnti (cambia al variare della SERIE)
       const gruppoStazioni = L.layerGroup().addTo(mappa);
@@ -1970,7 +1991,19 @@
 
       // Costruisce un pallino; hover = tooltip informativo, click = grafico
       function costruisciMarker(s) {
-        const quota = s.quota != null ? s.quota + " m" : "n/d";
+        if (s.alps) {
+          // Spillo al posto del pallino: nessuna area di hover aggiuntiva,
+          // l'icona stessa e' l'area cliccabile.
+          L.marker([s.lat, s.lon], { icon: iconaPinAlps })
+            .addTo(gruppoStazioni)
+            .bindTooltip(s.nome, {
+              direction: "top",
+              className: "tooltip-stazione",
+            })
+            .on("click", () => apriModale(s));
+          return;
+        }
+
         const colore = s.disponibile
           ? COLORE_DISPONIBILE
           : COLORE_NON_DISPONIBILE;
@@ -2050,6 +2083,50 @@
         creaFinestraGrafico(s);
       }
 
+      // Centra la finestra (a cascata se ce ne sono gia' altre aperte),
+      // impostando anche larghezza/altezza iniziali.
+      function posizionaFinestraIniziale(elFinestra, larghezza, altezza) {
+        const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
+        const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
+        const offset = (cascataGrafici++ % 8) * 28;
+        elFinestra.style.position = "fixed";
+        elFinestra.style.width = larghezza + "px";
+        elFinestra.style.height = altezza + "px";
+        elFinestra.style.left = baseX + offset + "px";
+        elFinestra.style.top = baseY + offset + "px";
+      }
+
+      // Come sopra ma sempre nello stesso punto (nessuno sfalsamento a
+      // cascata): usata per Alps, dove non serve "impilare" le finestre.
+      function posizionaFinestraFissa(elFinestra, larghezza, altezza) {
+        const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
+        const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
+        elFinestra.style.position = "fixed";
+        elFinestra.style.width = larghezza + "px";
+        elFinestra.style.height = altezza + "px";
+        elFinestra.style.left = baseX + "px";
+        elFinestra.style.top = baseY + "px";
+      }
+
+      // Le foto Alps sono quasi quadrate (non 1200x560 come i grafici): una
+      // volta caricata l'immagine, ridimensiono la finestra alla sua
+      // risoluzione reale (max-width/max-height in .finestra-grafico la
+      // limitano comunque a 95vw/90vh per le foto piu' grandi dello
+      // schermo), mantenendo fermo il centro della finestra.
+      const ALPS_PADDING_ORIZZONTALE = 40; // .modale-finestra: padding 18px 20px
+      const ALPS_SPAZIO_TITOLO = 74; // padding verticale + riga del titolo
+      function ridimensionaFinestraAllaFoto(elFinestra, largFoto, altFoto) {
+        const larghezza = largFoto + ALPS_PADDING_ORIZZONTALE;
+        const altezza = altFoto + ALPS_SPAZIO_TITOLO;
+        const rect = elFinestra.getBoundingClientRect();
+        const centroX = rect.left + rect.width / 2;
+        const centroY = rect.top + rect.height / 2;
+        elFinestra.style.width = larghezza + "px";
+        elFinestra.style.height = altezza + "px";
+        elFinestra.style.left = Math.max(20, centroX - larghezza / 2) + "px";
+        elFinestra.style.top = Math.max(20, centroY - altezza / 2) + "px";
+      }
+
       function creaFinestraGrafico(s) {
         const elFinestra = document.createElement("div");
         elFinestra.className = "modale-finestra finestra-grafico";
@@ -2065,37 +2142,68 @@
         elTitolo.style.fontSize = "1.2rem";
         elTitolo.style.textAlign = "center";
 
-        const elSelettoreSerie = document.createElement("div");
-        elSelettoreSerie.className = "selettore-serie-popup";
-        elSelettoreSerie.hidden = true;
-
-        const elGrafico = document.createElement("div");
-        elGrafico.className = "grafico-popup";
-        elGrafico.textContent = "(carico...)";
-
-        elFinestra.append(elChiudi, elTitolo, elSelettoreSerie, elGrafico);
-        finestreGrafici.appendChild(elFinestra);
-
-        // Posizione iniziale: centrata come prima per la prima finestra, poi
-        // a cascata (leggero sfalsamento) per quelle aperte successivamente
-        const larghezza = 1200; // .finestra-grafico deve essere allineato
-        const altezza = 560; // .finestra-grafico deve essere allineato
-        const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
-        const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
-        const offset = (cascataGrafici++ % 8) * 28;
-        elFinestra.style.position = "fixed";
-        elFinestra.style.left = baseX + offset + "px";
-        elFinestra.style.top = baseY + offset + "px";
-
         const stato = {
           serie: serieAttiva, // la SERIE attiva al momento dell'apertura
           elFinestra,
-          elSelettoreSerie,
-          elGrafico,
           grafico: null,
           appenaCreato: false,
         };
         finestreAperte.set(s.codice, stato);
+
+        if (s.alps) {
+          // Stazione Alps: niente serie temporale ne' selettore, solo il
+          // titolo e la foto della localita'.
+          const elImmagine = document.createElement("img");
+          elImmagine.className = "grafico-popup nessun-placeholder";
+          elImmagine.alt = "";
+          elImmagine.style.width = "100%";
+          elImmagine.style.height = "100%";
+          elImmagine.style.objectFit = "contain";
+          elImmagine.addEventListener("load", () =>
+            ridimensionaFinestraAllaFoto(
+              elFinestra,
+              elImmagine.naturalWidth,
+              elImmagine.naturalHeight,
+            ),
+          );
+          elImmagine.src =
+            "/alps/immagine/" +
+            encodeURIComponent(s.nome) +
+            ".png?data=" +
+            encodeURIComponent(s.data);
+
+          elFinestra.append(elChiudi, elTitolo, elImmagine);
+          finestreGrafici.appendChild(elFinestra);
+          // Placeholder quasi quadrato finche' la foto non e' caricata (poi
+          // ridimensionaFinestraAllaFoto la adatta alle proporzioni vere)
+          posizionaFinestraFissa(elFinestra, 640, 640);
+        } else {
+          const elSelettoreSerie = document.createElement("div");
+          elSelettoreSerie.className = "selettore-serie-popup";
+          elSelettoreSerie.hidden = true;
+
+          const elGrafico = document.createElement("div");
+          elGrafico.className = "grafico-popup";
+          elGrafico.textContent = "(carico...)";
+
+          elFinestra.append(elChiudi, elTitolo, elSelettoreSerie, elGrafico);
+          finestreGrafici.appendChild(elFinestra);
+          posizionaFinestraIniziale(elFinestra, 1200, 560);
+
+          stato.elSelettoreSerie = elSelettoreSerie;
+          stato.elGrafico = elGrafico;
+
+          // ECharts non si ridimensiona da solo se cambiano le dimensioni
+          // del contenitore per altre vie (qui: trascinando l'angolo della
+          // finestra): lo osservo io. Ignoro i resize nell'istante subito
+          // dopo la creazione, altrimenti interromperei l'animazione
+          // d'apertura.
+          const osservatore = new ResizeObserver(() => {
+            if (stato.grafico && !stato.appenaCreato) stato.grafico.resize();
+          });
+          osservatore.observe(elGrafico);
+          stato.osservatore = osservatore;
+        }
 
         elChiudi.addEventListener("click", () =>
           chiudiFinestraGrafico(s.codice),
@@ -2108,19 +2216,12 @@
         stato.smontaTrascinamento = rendiTrascinabile(elFinestra, elTitolo);
         stato.smontaRidimensionamento = rendiRidimensionabile(elFinestra);
 
-        // ECharts non si ridimensiona da solo se cambiano le dimensioni del
-        // contenitore per altre vie (qui: trascinando l'angolo della
-        // finestra): lo osservo io. Ignoro i resize nell'istante subito dopo
-        // la creazione, altrimenti interromperei l'animazione d'apertura.
-        const osservatore = new ResizeObserver(() => {
-          if (stato.grafico && !stato.appenaCreato) stato.grafico.resize();
-        });
-        osservatore.observe(elGrafico);
-        stato.osservatore = osservatore;
-
         portaInPrimoPiano(s.codice);
-        caricaSerieDisponibiliPopup(s.codice);
-        disegnaGraficoFinestra(s.codice);
+
+        if (!s.alps) {
+          caricaSerieDisponibiliPopup(s.codice);
+          disegnaGraficoFinestra(s.codice);
+        }
       }
 
       function caricaSerieDisponibiliPopup(codice) {
@@ -2164,12 +2265,13 @@
         disegnaGraficoFinestra(codice);
       }
 
-      // Chiude una finestra: libera l'istanza ECharts e l'observer
+      // Chiude una finestra: libera l'istanza ECharts e l'observer (se
+      // presenti: le finestre Alps non li hanno, vedi creaFinestraGrafico)
       function chiudiFinestraGrafico(codice) {
         const f = finestreAperte.get(codice);
         if (!f) return;
         if (f.grafico) f.grafico.dispose();
-        f.osservatore.disconnect();
+        if (f.osservatore) f.osservatore.disconnect();
         f.smontaTrascinamento();
         f.smontaRidimensionamento();
         f.elFinestra.remove();

@@ -252,6 +252,42 @@ def leggi_stazioni(serie):
     return stazioni
 
 
+
+# Localita' Alps (sito esterno "Alps by Davide"): niente piu' richieste di
+# rete a runtime. download_alps.py scarica periodicamente le png e
+# sites.json in dati1D/Alps/AAAA/MM/GG/ (stesso schema di cartelle di
+# percorso_serie_stazione), il backend si limita a leggerle da li'.
+CARTELLA_ALPS = os.path.join(CARTELLA_SERIE, "Alps")
+NOME_SITO_ALPS_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def percorso_cartella_alps(d):
+    """Cartella del giorno per le localita' Alps: dati1D/Alps/AAAA/MM/GG,
+    popolata da download_alps.py (sites.json + le png scaricate quel
+    giorno)."""
+    return os.path.join(
+        CARTELLA_ALPS, f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}"
+    )
+
+
+def leggi_siti_alps(d):
+    """Legge sites.json del giorno d (vuoto se quel giorno non e' mai stato
+    scaricato) e tiene solo le localita' la cui immagine e' stata
+    effettivamente scaricata quel giorno: sono le uniche "disponibili" per
+    quella data (stesso concetto di leggi_stazioni + disponibile, ma qui il
+    file JSON stesso puo' avere localita' diverse giorno per giorno)."""
+    cartella = percorso_cartella_alps(d)
+    percorso_sites = os.path.join(cartella, "sites.json")
+    if not os.path.exists(percorso_sites):
+        return []
+    with open(percorso_sites, encoding="utf-8") as f:
+        siti = json.load(f)
+    return [
+        s for s in siti
+        if os.path.exists(os.path.join(cartella, s["name"] + ".png"))
+    ]
+
+
 @app.route("/")
 def index():
     # Le stazioni non vengono più iniettate qui: dipendono dalla serie e
@@ -264,8 +300,33 @@ def stazioni():
     """Lista delle stazioni (pallini) per una SERIE 1D, con l'indicazione
     (campo "disponibile") se per la data richiesta esiste il file da poter
     plottare per quella stazione. Senza ?data= valida, "disponibile" e'
-    sempre False. Vuota se non ci sono stazioni."""
+    sempre False. Vuota se non ci sono stazioni.
+
+    La SERIE speciale "alps" non e' una vera serie 1D: sono le localita'
+    esterne del sito di Davide, ma lette da dati1D/Alps/AAAA/MM/GG/ (vedi
+    leggi_siti_alps) invece che da un CSV: senza una ?data= valida, o se
+    quel giorno non e' stato scaricato, e' semplicemente vuota."""
     serie = request.args.get("serie", "")
+
+    if serie == "alps":
+        try:
+            d = datetime.date.fromisoformat(request.args.get("data", ""))
+        except ValueError:
+            return jsonify([])
+        return jsonify([
+            {
+                "codice": "ALPS_" + s["name"],
+                "nome": s["name"],
+                "lat": s["lat"],
+                "lon": s["lng"],
+                "quota": None,
+                "disponibile": True,
+                "alps": True,
+                "data": d.isoformat(),
+            }
+            for s in leggi_siti_alps(d)
+        ])
+
     if serie not in SERIE_VALIDE:
         abort(404)
 
@@ -562,6 +623,25 @@ def fulmini_dati_intervallo():
             punti.extend(
                 {"lon": lo, "lat": la, "t": tt} for lo, la, tt in zip(lon, lat, t))
     return jsonify(punti)
+
+
+@app.route("/alps/immagine/<nome>.png")
+def alps_immagine(nome):
+    """Immagine locale di una localita' Alps per una data (scaricata da
+    download_alps.py in dati1D/Alps/AAAA/MM/GG/<nome>.png).
+    Parametro query: ?data=YYYY-MM-DD"""
+    if not NOME_SITO_ALPS_RE.match(nome):
+        abort(404)
+    try:
+        d = datetime.date.fromisoformat(request.args.get("data", ""))
+    except ValueError:
+        abort(404)
+    percorso = os.path.join(percorso_cartella_alps(d), f"{nome}.png")
+    if not os.path.exists(percorso):
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/png")
+    risposta.headers["Cache-Control"] = "public, max-age=86400"
+    return risposta
 
 
 @app.route("/shapefile/<nome>")

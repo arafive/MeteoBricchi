@@ -11,8 +11,6 @@ README.txt
     Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
     Apri il plot a pop up con CTRL e il mouse sopra il pallino.
     In produzione, colora i pallini se superano certe soglie.
-    Tasto sinistro: indietro di un giorno
-    Tasto destro: avanti di un giorno
 
 --- Grafici 2D
     Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
@@ -21,7 +19,7 @@ README.txt
 --- Altro
     Logo meteobricchi.
     Pulsante "Ricentra zoom"
-    Metti un pulsante e apre "Alps"
+    Crea un unico file 'sync.sh' con tutti gli rsync espliciti per una migliore lettura
 
 --- Bachi
     In run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere
