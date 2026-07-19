@@ -343,6 +343,18 @@
                 alt=""
               />
             </button>
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneRicentra"
+              title="Ricentra"
+              aria-label="Ricentra"
+            >
+              <img
+                src="{{ url_for('static', filename='icone/mirino.svg') }}"
+                alt=""
+              />
+            </button>
           </div>
         </div>
         <div class="firma">
@@ -480,13 +492,16 @@
       // CAMPO = dato 2D (griglia lat/lon): es. radar. Si visualizzera' come
       //         overlay sulla mappa.
 
-      // Vista iniziale centrata sulla Liguria (Genova), zoom regionale
+// Vista iniziale centrata sulla Liguria (Genova), zoom regionale.
+      // Tenuta in una costante (non solo inline in setView) perche' serve
+      // anche al bottone "Ricentra", per tornare qui senza toccare i layer.
+      const VISTA_INIZIALE = { centro: [44.2, 8.75], zoom: 9 };
       const mappa = L.map("mappa", {
         zoomControl: false,
         keyboardPanDelta: 0, // le frecce non spostano la mappa (le usa il radar)
         wheelPxPerZoomLevel: 120, // default 60: più alto = zoom più "morbido" per scatto di rotella
         preferCanvas: true, // i layer vettoriali (fulmini, pallini stazioni, shapefile) vanno su un unico <canvas> invece che un nodo SVG a elemento: molto più scalabile con tanti punti (es. cumulate fulmini larghe)
-      }).setView([44.2, 8.75], 9);
+      }).setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
 
       const JAWG_TOKEN =
         "DFk9XtMZXvm87c8Zgnv7QPF3ATjMOTGNpomeTFUSLLjnaqBQgbqx2wWwKFDnEP2s";
@@ -3077,6 +3092,13 @@
         modaleLayer.querySelector(".modale-finestra"),
         modaleLayer.querySelector(".titolo-popup"),
       );
+
+      // Riporta la mappa a centro/zoom iniziali: solo la vista, i layer
+      // attivi (mappa di base, sentiero, shapefile, campi...) restano
+      // quelli che erano gia' accesi.
+      document.getElementById("bottoneRicentra").addEventListener("click", () => {
+        mappa.setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
+      });
 
       // All'avvio nessuna serie è selezionata: la mappa parte senza pallini.
       // I pallini compaiono quando l'utente sceglie una serie.
