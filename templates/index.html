@@ -155,7 +155,7 @@
                 aria-label="Alps by Davide"
               >
                 <img
-                  src="{{ url_for('static', filename='icone/alps_1.svg') }}"
+                  src="{{ url_for('static', filename='icone/alps_3.svg') }}"
                   alt=""
                 />
               </button>
@@ -351,7 +351,19 @@
               aria-label="Ricentra"
             >
               <img
-                src="{{ url_for('static', filename='icone/mirino.svg') }}"
+                src="{{ url_for('static', filename='icone/mirino_2.svg') }}"
+                alt=""
+              />
+            </button>
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneOrario"
+              title="Orario"
+              aria-label="Orario"
+            >
+              <img
+                src="{{ url_for('static', filename='icone/calendario.svg') }}"
                 alt=""
               />
             </button>
@@ -492,7 +504,7 @@
       // CAMPO = dato 2D (griglia lat/lon): es. radar. Si visualizzera' come
       //         overlay sulla mappa.
 
-// Vista iniziale centrata sulla Liguria (Genova), zoom regionale.
+      // Vista iniziale centrata sulla Liguria (Genova), zoom regionale.
       // Tenuta in una costante (non solo inline in setView) perche' serve
       // anche al bottone "Ricentra", per tornare qui senza toccare i layer.
       const VISTA_INIZIALE = { centro: [44.2, 8.75], zoom: 9 };
@@ -674,7 +686,7 @@
         },
         {
           id: "11",
-          nome: "Tutta bianca",
+          nome: "All white",
           strati: [
             {
               url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
@@ -688,7 +700,7 @@
         },
         {
           id: "12",
-          nome: "Tutta nera",
+          nome: "All black",
           strati: [
             {
               url: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
@@ -3096,9 +3108,15 @@
       // Riporta la mappa a centro/zoom iniziali: solo la vista, i layer
       // attivi (mappa di base, sentiero, shapefile, campi...) restano
       // quelli che erano gia' accesi.
-      document.getElementById("bottoneRicentra").addEventListener("click", () => {
-        mappa.setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
-      });
+        document
+          .getElementById("bottoneOrario")
+          .addEventListener("click", () => {
+            window.open("http://10.24.50.225:5000/", "_blank");
+          });
+
+        document.getElementById("bottoneRicentra").addEventListener("click", () => {
+          mappa.setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
+        });
 
       // All'avvio nessuna serie è selezionata: la mappa parte senza pallini.
       // I pallini compaiono quando l'utente sceglie una serie.

@@ -18,7 +18,6 @@ README.txt
 
 --- Altro
     Logo meteobricchi.
-    Pulsante "Ricentra zoom"
     Crea un unico file 'sync.sh' con tutti gli rsync espliciti per una migliore lettura
 
 --- Bachi
