@@ -60,7 +60,10 @@ CARTELLE_SATELLITE = {
     "geocolour": os.path.join(CARTELLA_CAMPI, "geocolour"),
     "sandwich": os.path.join(CARTELLA_CAMPI, "sandwich"),
 }
-# Confini geografici statici (shapefile), overlay opzionali sulla mappa.
+# Echo Top: stessa idea di CARTELLE_SATELLITE, ma il "prodotto" selezionabile
+# e' il livello di soglia in dBZ (radar_etp/<livello>/AAAA/MM/GG/*.webp).
+CARTELLA_ECHOTOP = os.path.join(CARTELLA_CAMPI, "radar_etp")
+LIVELLI_ECHOTOP_VALIDI = {"18", "35", "45"}# Confini geografici statici (shapefile), overlay opzionali sulla mappa.
 # Ogni sottocartella contiene UN solo .shp (nome variabile: si trova per
 # estensione) + i sidecar .dbf/.shx/.prj/.cpg.
 CARTELLA_SHAPEFILE = os.path.join(os.path.dirname(__file__), "shapefile")
@@ -545,6 +548,48 @@ def satellite_immagine(nome):
     if not NOME_FRAME_RE.match(nome):
         abort(404)
     percorso = trova_per_nome(cartella, nome, "webp")
+    if percorso is None:
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/webp")
+    risposta.headers["Cache-Control"] = "public, max-age=86400"
+    return risposta
+
+
+@app.route("/echotop/lista")
+def echotop_lista():
+    """Elenco frame Echo Top (webp) + bounds, come /satellite/lista.
+    Parametro query: ?livello=18|35|45 (soglia in dBZ)."""
+    livello = request.args.get("livello", "")
+    if livello not in LIVELLI_ECHOTOP_VALIDI:
+        abort(404)
+    frame = trova_frame(os.path.join(CARTELLA_ECHOTOP, livello), "webp")
+    if not frame:
+        return jsonify({"totale": 0, "bounds": None, "nomi": []})
+    try:
+        with open(os.path.splitext(frame[0])[0] + ".json") as f:
+            sidecar = json.load(f)
+        bounds = sidecar["bounds"]
+    except (OSError, ValueError, KeyError):
+        bounds = None
+    nomi = [os.path.splitext(os.path.basename(p))[0] for p in frame]
+    return jsonify({
+        "totale": len(frame),
+        "bounds": bounds,
+        "nomi": nomi,
+    })
+
+
+@app.route("/echotop/immagine/<nome>.webp")
+def echotop_immagine(nome):
+    """Stesso parametro ?livello= di /echotop/lista. Identificato per NOME,
+    non per indice: stesso motivo di /satellite/immagine/<nome>.webp."""
+    livello = request.args.get("livello", "")
+    if livello not in LIVELLI_ECHOTOP_VALIDI:
+        abort(404)
+    if not NOME_FRAME_RE.match(nome):
+        abort(404)
+    percorso = trova_per_nome(
+        os.path.join(CARTELLA_ECHOTOP, livello), nome, "webp")
     if percorso is None:
         abort(404)
     risposta = send_file(percorso, mimetype="image/webp")

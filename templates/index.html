@@ -197,8 +197,20 @@
                 title="VIL"
                 aria-label="VIL"
               >
-                <img
+<img
                   src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="echotop"
+                title="Echo Top"
+                aria-label="Echo Top"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/echotop.svg') }}"
                   alt=""
                 />
               </button>
@@ -428,9 +440,28 @@
             <input type="radio" name="tipoFulmini" value="C" />
             Cloud-to-cloud (C)
           </label>
-          <label>
+<label>
             <input type="radio" name="tipoFulmini" value="G" />
             Cloud-to-ground (G)
+          </label>
+        </div>
+
+        <div
+          id="controlliEchotopLivello"
+          class="controlli-satellite"
+          hidden
+        >
+          <label>
+            <input type="radio" name="livelloEchotop" value="18" checked />
+            18 dBZ
+          </label>
+          <label>
+            <input type="radio" name="livelloEchotop" value="35" />
+            35 dBZ
+          </label>
+          <label>
+            <input type="radio" name="livelloEchotop" value="45" />
+            45 dBZ
           </label>
         </div>
       </div>
@@ -942,12 +973,29 @@
           // nulla al server: "tipo" e' gia' nei punti scaricati, e' solo
           // un filtro di visualizzazione. Ridisegno col filtro nuovo se
           // fulmini e' gia' attivo e c'e' un istante mostrato.
-          if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
+if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
             mostraFrameCampo("fulmini", listaIstanti[indiceIstante]);
           }
         }),
       );
-      // Fino a 3 colorbar mostrabili insieme (una per ciascun campo attivo
+
+      const controlliEchotopLivello = document.getElementById(
+        "controlliEchotopLivello",
+      );
+      document
+        .querySelectorAll('input[name="livelloEchotop"]')
+        .forEach((radio) =>
+          radio.addEventListener("change", () => {
+            if (!radio.checked) return;
+            livelloEchotop = radio.value;
+            // Come il prodotto satellite, il livello cambia la cartella
+            // servita dal backend: ricarico la lista solo se echotop e'
+            // gia' attivo.
+            if (campiAttivi.includes("echotop"))
+              accendiCampoTemporale("echotop");
+          }),
+        );
+      // Fino a 3 colorbar mostrabili insieme
       // che ne ha una, radar/riflettivita/vert_int_liq/caldo_obs/freddo_obs; fulmini
       // e satellite non ne hanno)
       const colorbarEl = [
@@ -995,6 +1043,12 @@
           estensione: "webp",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
+        },
+echotop: {
+          tipo: "immagine",
+          etichetta: "Echo Top",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_radar_etp.png') }}",
         },
         fulmini: {
           tipo: "punti",
@@ -1059,6 +1113,10 @@
       // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
       // ritrova l'ultima scelta fatta.
       let prodottoSatellite = "geocolour";
+
+      // Livello (soglia in dBZ) dell'Echo Top attualmente scelto: come
+      // prodottoSatellite, non si azzera quando il campo si spegne.
+      let livelloEchotop = "35";
 
       // Filtro sul tipo di fulmine (COMMT, rinominato "tipo"): "tutti",
       // "C" (cloud-to-cloud) o "G" (cloud-to-ground). Come prodottoSatellite,
@@ -1453,11 +1511,19 @@
         if (campo === "satellite") {
           const nomeFrame = listaFrameCampo[campo].nomi[indice];
           voce = new Image();
-          voce.src =
+voce.src =
             "/satellite/immagine/" +
             encodeURIComponent(nomeFrame) +
             ".webp?prodotto=" +
             encodeURIComponent(prodottoSatellite);
+        } else if (campo === "echotop") {
+          const nomeFrame = listaFrameCampo[campo].nomi[indice];
+          voce = new Image();
+          voce.src =
+            "/echotop/immagine/" +
+            encodeURIComponent(nomeFrame) +
+            ".webp?livello=" +
+            encodeURIComponent(livelloEchotop);
         } else if (descr.tipo === "immagine") {
           // Per NOME, non per indice: vedi commento nella route Flask
           // /immagine/<nome>.<estensione> sul perche'.
@@ -1859,8 +1925,9 @@
         costruisciListaIstanti();
         const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
         controlliRadar.hidden = !temporaliAttivi;
-        controlliSatellite.hidden = !campiAttivi.includes("satellite");
+controlliSatellite.hidden = !campiAttivi.includes("satellite");
         controlliFulminiTipo.hidden = !campiAttivi.includes("fulmini");
+        controlliEchotopLivello.hidden = !campiAttivi.includes("echotop");
         if (!temporaliAttivi) return;
 
         if (listaIstanti.length > 0) {
@@ -1897,11 +1964,14 @@
         }
       });
 
-      function urlListaCampo(campo) {
+function urlListaCampo(campo) {
         if (campo === "satellite") {
           return (
             "/satellite/lista?prodotto=" + encodeURIComponent(prodottoSatellite)
           );
+        }
+        if (campo === "echotop") {
+          return "/echotop/lista?livello=" + encodeURIComponent(livelloEchotop);
         }
         return DESCRITTORI_CAMPO[campo].tipo === "immagine"
           ? "/radar/lista?campo=" + encodeURIComponent(campo)

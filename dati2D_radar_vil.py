@@ -103,7 +103,7 @@ for adesso_0_UTC in lista_tempi:
     #     transform=ccrs.PlateCarree()
     # )
     
-    # ax.set_title("VIL [kg/m²]]", loc='left')
+    # ax.set_title("VIL [kg/m²]", loc='left')
     # ax.set_title(str(t), loc='right')
     
     # cbar = plt.colorbar(
