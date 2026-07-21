@@ -170,7 +170,7 @@
                 type="button"
                 class="bottone-campo"
                 data-campo="radar"
-                title="Radar"
+                title="Radar (Alt Shift r)"
                 aria-label="Radar"
               >
                 <img
@@ -218,7 +218,7 @@
                 type="button"
                 class="bottone-campo"
                 data-campo="fulmini"
-                title="Fulmini"
+                title="Fulmini (Alt Shift f)"
                 aria-label="Fulmini"
               >
                 <img
@@ -3196,9 +3196,29 @@
         r: "bottoneRicentra",
         o: "bottoneOrario",
       };
+      // Scorciatoie Alt+Shift+lettera per i bottoni CAMPO: tasti diversi
+      // apposta per non confliggere con quelle sopra (es. Alt+R = Ricentra,
+      // Alt+Shift+R = Radar: e.shiftKey le distingue).
+      const SCORCIATOIE_CAMPI = {
+        f: "fulmini",
+        r: "radar",
+      };
+      function clickBottoneCampo(campo) {
+        bottoniCampo.forEach((b) => {
+          if (b.dataset.campo === campo) b.click();
+        });
+      }
       document.addEventListener("keydown", (e) => {
         if (!e.altKey) return;
-        const idBottone = SCORCIATOIE_BOTTONI_AZIONE[e.key.toLowerCase()];
+        const tasto = e.key.toLowerCase();
+        if (e.shiftKey) {
+          const campo = SCORCIATOIE_CAMPI[tasto];
+          if (!campo) return;
+          e.preventDefault();
+          clickBottoneCampo(campo);
+          return;
+        }
+        const idBottone = SCORCIATOIE_BOTTONI_AZIONE[tasto];
         if (!idBottone) return;
         e.preventDefault();
         document.getElementById(idBottone).click();

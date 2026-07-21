@@ -13,7 +13,6 @@ README.txt
     In produzione, colora i pallini se superano certe soglie.
 
 --- Grafici 2D
-    Aggiungi EPT (tempi strani di arrivo, forse non ha senso).
     Aggiungi IRENE.
 
 --- Altro
