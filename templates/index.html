@@ -197,7 +197,7 @@
                 title="VIL"
                 aria-label="VIL"
               >
-<img
+                <img
                   src="{{ url_for('static', filename='icone/vert_int_liq.svg') }}"
                   alt=""
                 />
@@ -308,7 +308,7 @@
               type="button"
               class="bottone-azione"
               id="bottoneAnimazione"
-              title="Animazione"
+              title="Animazione (Alt+a)"
               aria-label="Animazione"
               disabled
             >
@@ -328,7 +328,7 @@
               type="button"
               class="bottone-azione"
               id="bottoneColorbar"
-              title="Colorbar"
+              title="Colorbar (Alt+c)"
               aria-label="Colorbar"
             >
               <img
@@ -347,7 +347,7 @@
               type="button"
               class="bottone-azione"
               id="bottoneLayer"
-              title="Layer"
+              title="Layer (Alt+l)"
               aria-label="Layer"
             >
               <img
@@ -359,7 +359,7 @@
               type="button"
               class="bottone-azione"
               id="bottoneRicentra"
-              title="Ricentra"
+              title="Ricentra (Alt+r)"
               aria-label="Ricentra"
             >
               <img
@@ -371,7 +371,7 @@
               type="button"
               class="bottone-azione"
               id="bottoneOrario"
-              title="Orario"
+              title="Orario (Alt+o)"
               aria-label="Orario"
             >
               <img
@@ -440,23 +440,19 @@
             <input type="radio" name="tipoFulmini" value="C" />
             Cloud-to-cloud (C)
           </label>
-<label>
+          <label>
             <input type="radio" name="tipoFulmini" value="G" />
             Cloud-to-ground (G)
           </label>
         </div>
 
-        <div
-          id="controlliEchotopLivello"
-          class="controlli-satellite"
-          hidden
-        >
+        <div id="controlliEchotopLivello" class="controlli-satellite" hidden>
           <label>
-            <input type="radio" name="livelloEchotop" value="18" checked />
+            <input type="radio" name="livelloEchotop" value="18" />
             18 dBZ
           </label>
           <label>
-            <input type="radio" name="livelloEchotop" value="35" />
+            <input type="radio" name="livelloEchotop" value="35" checked />
             35 dBZ
           </label>
           <label>
@@ -973,7 +969,7 @@
           // nulla al server: "tipo" e' gia' nei punti scaricati, e' solo
           // un filtro di visualizzazione. Ridisegno col filtro nuovo se
           // fulmini e' gia' attivo e c'e' un istante mostrato.
-if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
+          if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
             mostraFrameCampo("fulmini", listaIstanti[indiceIstante]);
           }
         }),
@@ -1044,7 +1040,7 @@ if (campiAttivi.includes("fulmini") && indiceIstante >= 0) {
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
         },
-echotop: {
+        echotop: {
           tipo: "immagine",
           etichetta: "Echo Top",
           colorbar:
@@ -1511,7 +1507,7 @@ echotop: {
         if (campo === "satellite") {
           const nomeFrame = listaFrameCampo[campo].nomi[indice];
           voce = new Image();
-voce.src =
+          voce.src =
             "/satellite/immagine/" +
             encodeURIComponent(nomeFrame) +
             ".webp?prodotto=" +
@@ -1925,7 +1921,7 @@ voce.src =
         costruisciListaIstanti();
         const temporaliAttivi = campiAttivi.some((c) => DESCRITTORI_CAMPO[c]);
         controlliRadar.hidden = !temporaliAttivi;
-controlliSatellite.hidden = !campiAttivi.includes("satellite");
+        controlliSatellite.hidden = !campiAttivi.includes("satellite");
         controlliFulminiTipo.hidden = !campiAttivi.includes("fulmini");
         controlliEchotopLivello.hidden = !campiAttivi.includes("echotop");
         if (!temporaliAttivi) return;
@@ -1964,7 +1960,7 @@ controlliSatellite.hidden = !campiAttivi.includes("satellite");
         }
       });
 
-function urlListaCampo(campo) {
+      function urlListaCampo(campo) {
         if (campo === "satellite") {
           return (
             "/satellite/lista?prodotto=" + encodeURIComponent(prodottoSatellite)
@@ -3178,15 +3174,35 @@ function urlListaCampo(campo) {
       // Riporta la mappa a centro/zoom iniziali: solo la vista, i layer
       // attivi (mappa di base, sentiero, shapefile, campi...) restano
       // quelli che erano gia' accesi.
-        document
-          .getElementById("bottoneOrario")
-          .addEventListener("click", () => {
-            window.open("http://10.24.50.225:5000/", "_blank");
-          });
+      document.getElementById("bottoneOrario").addEventListener("click", () => {
+        window.open("http://10.24.50.225:5000/", "_blank");
+      });
 
-        document.getElementById("bottoneRicentra").addEventListener("click", () => {
+      document
+        .getElementById("bottoneRicentra")
+        .addEventListener("click", () => {
           mappa.setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
         });
+
+      // Scorciatoie da tastiera per i bottoni azione: Alt+lettera equivale a
+      // un click sul bottone (stessa logica, niente duplicazione). Se il
+      // bottone e' disabilitato (es. Animazione senza campi temporali
+      // attivi) il click non ha comunque effetto, come da comportamento
+      // nativo del browser sui bottoni disabled.
+      const SCORCIATOIE_BOTTONI_AZIONE = {
+        a: "bottoneAnimazione",
+        c: "bottoneColorbar",
+        l: "bottoneLayer",
+        r: "bottoneRicentra",
+        o: "bottoneOrario",
+      };
+      document.addEventListener("keydown", (e) => {
+        if (!e.altKey) return;
+        const idBottone = SCORCIATOIE_BOTTONI_AZIONE[e.key.toLowerCase()];
+        if (!idBottone) return;
+        e.preventDefault();
+        document.getElementById(idBottone).click();
+      });
 
       // All'avvio nessuna serie è selezionata: la mappa parte senza pallini.
       // I pallini compaiono quando l'utente sceglie una serie.
