@@ -205,6 +205,18 @@
               <button
                 type="button"
                 class="bottone-campo"
+                data-campo="vil-dens"
+                title="VIL Density"
+                aria-label="VIL Density"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/vil-dens.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
                 data-campo="echotop"
                 title="Echo Top"
                 aria-label="Echo Top"
@@ -1039,6 +1051,13 @@
           estensione: "webp",
           colorbar:
             "{{ url_for('static', filename='icone/colorbar_radar_vil.png') }}",
+        },
+        "vil-dens": {
+          tipo: "immagine",
+          etichetta: "VIL Density",
+          estensione: "webp",
+          colorbar:
+            "{{ url_for('static', filename='icone/colorbar_radar_vil-dens.png') }}",
         },
         echotop: {
           tipo: "immagine",

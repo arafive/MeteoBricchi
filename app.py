@@ -48,6 +48,7 @@ CARTELLE_RADAR = {
     "radar": (os.path.join(CARTELLA_CAMPI, "radar_sri"), "webp", "image/webp"),
     "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "webp", "image/webp"),
     "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
+    "vil-dens": (os.path.join(CARTELLA_CAMPI, "radar_vil-dens"), "webp", "image/webp"),
     "caldo_obs": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
     "freddo_obs": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
     "caldo_prev": (os.path.join(CARTELLA_CAMPI, "heatindex2D_prev", "ecita"), "png", "image/png"),
@@ -85,7 +86,7 @@ NODATA = -999
 # SERIE = dati 1D (serie temporali su stazioni puntuali): sottocartelle di dati1D/
 SERIE_VALIDE = {"vento", "temperatura", "umidita", "pioggia"}
 # CAMPO = dati 2D (griglia lat/lon): sottocartelle di dati2D/ - per ora solo il bottone
-CAMPI_VALIDI = {"radar", "riflettivita", "vert_int_liq", "fulmini"}
+CAMPI_VALIDI = {"radar", "riflettivita", "vert_int_liq", "vil-dens", "fulmini"}
 
 
 def trova_frame(cartella, estensione):
@@ -466,8 +467,7 @@ def radar_lista():
         "nomi": nomi,
     })
 
-
-NOME_FRAME_RE = re.compile(r"^[A-Za-z0-9_]+_(\d{4})-(\d{2})-(\d{2})_(\d{4})$")
+NOME_FRAME_RE = re.compile(r"^[A-Za-z0-9_-]+_(\d{4})-(\d{2})-(\d{2})_(\d{4})$")
 
 
 @app.route("/immagine/<nome>.<estensione>")

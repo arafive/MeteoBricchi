@@ -17,59 +17,70 @@ os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
-cartella_destinazione = f"{config.get('DATI2D', 'cartella')}/radar_vil"
+cartella_destinazione = f"{config.get('DATI2D', 'cartella')}/radar_vil-dens"
 
 # %%
 sovrascrivi = False
 
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None).round('5min')
 
-# lista_tempi = [adesso_0_UTC]
-# lista_tempi = pd.date_range('2026-06-28 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
-lista_tempi = pd.date_range('2025-09-01 00:00:00', '2025-09-03 00:00:00', freq='5min')
+lista_tempi = [adesso_0_UTC]
+# lista_tempi = pd.date_range('2025-09-01 00:00:00', '2025-09-03 00:00:00', freq='5min')
+lista_tempi = pd.date_range('2026-07-20 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
     print(f'{cartella_destinazione=}')
     
     for t in pd.date_range(adesso_0_UTC - pd.Timedelta(hours=1), adesso_0_UTC, freq='5min')[::-1]:
-        percorso = f"/mnt/ARC_STORICO/RADAR/ARCHIVIO_RADAR_VIL/{t.strftime(format='%Y/%m/%d')}/VIL{t.strftime(format='%Y%m%d%H%M')}.tif"
+        percorso_etp18 = f"/mnt/ARC_STORICO/RADAR/ARCHIVIO_RADAR_ETP/{t.strftime(format='%Y/%m/%d')}/ETP{t.strftime(format='%Y%m%d%H%M')}18.tif"
+        percorso_vil = f"/mnt/ARC_STORICO/RADAR/ARCHIVIO_RADAR_VIL/{t.strftime(format='%Y/%m/%d')}/VIL{t.strftime(format='%Y%m%d%H%M')}.tif"
 
-        if os.path.exists(percorso):
-            with rasterio.open(percorso) as f:
-                raster = f.read(1)
-                
-                raster[raster == -9999.0] = np.nan
-                # raster[raster < 1 and raster != -1] = 0
-            
+        if os.path.exists(percorso_etp18) and os.path.exists(percorso_vil):
+
+            with rasterio.open(percorso_etp18) as f:
+                raster_etp18 = f.read(1)
+                raster_etp18[raster_etp18 == -9999.0] = np.nan
                 transform = f.transform
                 crs_raster = f.crs
                 altezza, larghezza = f.shape
-                
-                ### Prendo gli indici di ogni cella
                 righe, colonne = np.meshgrid(np.arange(altezza), np.arange(larghezza), indexing='ij')
-            
-                ### Converto questi indici in coordinate
+                lon, lat = rasterio.transform.xy(transform, righe, colonne, offset='center')
+                lon, lat = np.reshape(lon, (altezza, larghezza)), np.reshape(lat, (altezza, larghezza))
+
+            mask_valid = ~np.isnan(raster_etp18)
+            mask_bordo = binary_dilation(mask_valid) & np.isnan(raster_etp18)
+            raster_etp18[mask_bordo] = -1
+
+            with rasterio.open(percorso_vil) as f:
+                raster_vil = f.read(1)
+                raster_vil[raster_vil == -9999.0] = np.nan
+                transform = f.transform
+                crs_raster = f.crs
+                altezza, larghezza = f.shape
+                righe, colonne = np.meshgrid(np.arange(altezza), np.arange(larghezza), indexing='ij')
                 lon, lat = rasterio.transform.xy(transform, righe, colonne, offset='center')
                 lon, lat = np.reshape(lon, (altezza, larghezza)), np.reshape(lat, (altezza, larghezza))
                 
+            mask_valid = ~np.isnan(raster_vil)
+            mask_bordo = binary_dilation(mask_valid) & np.isnan(raster_vil)
+            raster_vil[mask_bordo] = -1
+                
             print(f'trovata {t}')
             break
+
+    raster = (raster_vil / raster_etp18) * 1000
+    raster[np.isinf(raster)] = np.nan
+    raster[raster == 1000] = -1
     
     cartella_file = f"{cartella_destinazione}/{t.strftime(format='%Y/%m/%d')}"
     os.makedirs(cartella_file, exist_ok=True)
-    nome_file_webp = f"radar_vil_{t.strftime(format='%Y-%m-%d_%H%M')}.webp"
+    nome_file_webp = f"radar_vil-dens_{t.strftime(format='%Y-%m-%d_%H%M')}.webp"
     print(f'{nome_file_webp=}')
 
     if os.path.exists(f'{cartella_file}/{nome_file_webp}') and not sovrascrivi:
         print('Esiste già il file. Esco.')
         continue
-    
-    mask_valid = ~np.isnan(raster)
-    mask_bordo = binary_dilation(mask_valid) & np.isnan(raster)
-    raster[mask_bordo] = -1
-
-    # np.save("raster.npy", raster)
     
     # %% Plot di controllo
     # import matplotlib.pyplot as plt
@@ -77,9 +88,11 @@ for adesso_0_UTC in lista_tempi:
     # import cartopy.crs as ccrs
     # import cartopy.feature as cfeature
     
-    # livelli = [-1.5, -0.5, 1, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75]
-    # labels = livelli
-    # colori = ['#ffffff', 'none', '#2c0c3e', '#3d40a4', '#436ce3', '#3d95fa', '#23bdea', '#15ddc3', '#32f197', '#6cfc63', '#a3fa3d', '#cdeb32', '#ecd035', '#fbad2e', '#fa801b', '#ec5107', '#d22c00', '#ac1000', '#7b0000']
+    # livelli = np.array([-1.5, -0.5, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9])
+    # labels = ['-1.5', '-0.5', '0.2', '0.4', '0.6', '0.8', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '6', '7', '8', '9']
+    # hex_colors = [mcolors.to_hex(plt.get_cmap('jet')(x)) for x in np.linspace(0, 1, 17)]
+
+    # colori = ['#ffffff', 'none'] + hex_colors
     
     # cmap = mcolors.ListedColormap(colori[:-1])
     # cmap.set_over(colori[-1])
@@ -104,7 +117,7 @@ for adesso_0_UTC in lista_tempi:
     #     transform=ccrs.PlateCarree()
     # )
     
-    # ax.set_title("VIL [kg/m²]", loc='left')
+    # ax.set_title("VLD [g/m³]", loc='left')
     # ax.set_title(str(t), loc='right')
     
     # cbar = plt.colorbar(
@@ -117,19 +130,20 @@ for adesso_0_UTC in lista_tempi:
     #     pad=0.01,
     #     fraction=0.1,
     # )
+    # cbar.set_ticklabels(labels)
     
     # plt.show()
     # plt.close()
-
+    
     # %% Plot della colorbar
     
     # import matplotlib.pyplot as plt
     # import matplotlib.colors as mcolors
     # import matplotlib.patheffects as path_effects
     
-    # livelli = [1, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75]
-    # labels = livelli
-    # colori = ['#2c0c3e', '#3d40a4', '#436ce3', '#3d95fa', '#23bdea', '#15ddc3', '#32f197', '#6cfc63', '#a3fa3d', '#cdeb32', '#ecd035', '#fbad2e', '#fa801b', '#ec5107', '#d22c00', '#ac1000', '#7b0000']
+    # livelli = np.array([0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9])
+    # labels = ['0.2', '0.4', '0.6', '0.8', '1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '6', '7', '8', '9']
+    # colori = [mcolors.to_hex(plt.get_cmap('jet')(x)) for x in np.linspace(0, 1, 17)]
     
     # cmap = mcolors.ListedColormap(colori[:-1])
     # cmap.set_over(colori[-1])
@@ -176,7 +190,7 @@ for adesso_0_UTC in lista_tempi:
     
     # # unità a destra (bold)
     # cbar.ax.text(
-    #     1.06, 0.5, "kg/m²",
+    #     1.06, 0.5, "g/m³",
     #     transform=cbar.ax.transAxes,
     #     ha='left',
     #     va='center',
@@ -196,7 +210,7 @@ for adesso_0_UTC in lista_tempi:
     # ax.patch.set_alpha(0)
     
     # plt.savefig(
-    #     "./static/icone/colorbar_radar_vil.png",
+    #     "./static/icone/colorbar_radar_vil-dens.png",
     #     dpi=600,
     #     transparent=True,
     #     bbox_inches="tight",
@@ -205,8 +219,12 @@ for adesso_0_UTC in lista_tempi:
     
     # plt.show()
     # plt.close()
-
+    # sss
+    
     # %%
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    
     # Questa va adattata
     crs_wkt = CRS.from_wkt(crs_raster.to_wkt())
     
@@ -228,13 +246,11 @@ for adesso_0_UTC in lista_tempi:
     ### Riproiezione EPSG:3857 + colormap, generati qui invece che a runtime in
     # app.py: numpy vettorizzato una volta sola, invece che ad ogni richiesta web.
     R_TERRA = 6378137.0  # raggio sferico Web Mercator (EPSG:3857), stesso di Leaflet
-    
+
     # !!! LIVELLI e COLORI_HEX definiti con il Plot di controllo
-    LIVELLI = np.array(
-        [-1.5, -0.5, 1, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75]
-    )
+    LIVELLI = np.array([-1.5, -0.5, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9])
     
-    COLORI_HEX = ['#ffffff', 'none', '#2c0c3e', '#3d40a4', '#436ce3', '#3d95fa', '#23bdea', '#15ddc3', '#32f197', '#6cfc63', '#a3fa3d', '#cdeb32', '#ecd035', '#fbad2e', '#fa801b', '#ec5107', '#d22c00', '#ac1000', '#7b0000']
+    COLORI_HEX = ['#ffffff', 'none'] + [mcolors.to_hex(plt.get_cmap('jet')(x)) for x in np.linspace(0, 1, 17)]
     
     def _hex_to_rgb(h):
         if h == "none":
@@ -298,5 +314,5 @@ for adesso_0_UTC in lista_tempi:
                 [float(lat_3857[-1]), float(lon_3857[-1])],
             ],
         }, f)
-    
+
 print('Done\n')

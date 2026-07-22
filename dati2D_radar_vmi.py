@@ -27,8 +27,8 @@ dataset = "italian-radar-dpc-vmi.zarr"
 dataset_url = f"https://{username}:{access_key}@api.arcodatahub.com/S3/{dataset}"
 ds_tot = xr.open_dataset(dataset_url, engine="zarr")
 
-# os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
-os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
+os.chdir('/run/media/daniele.carnevale/Daniele2TB/repo/MeteoBricchi')
+# os.chdir('/media/daniele/Daniele2TB/repo/MeteoBricchi')
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
@@ -54,7 +54,8 @@ sovrascrivi = False
 adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None)
 
 # lista_tempi = [adesso_0_UTC]
-lista_tempi = pd.date_range('2026-07-10 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+lista_tempi = pd.date_range('2025-09-01 00:00:00', '2025-09-03 00:00:00', freq='5min')
+# lista_tempi = pd.date_range('2026-07-10 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")

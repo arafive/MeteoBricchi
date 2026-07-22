@@ -57,7 +57,8 @@ adesso_0_UTC = pd.to_datetime(datetime.now(timezone.utc)).tz_localize(None).floo
 adesso_0_UTC = adesso_0_UTC - pd.Timedelta(minutes=10)
 
 # lista_tempi = [adesso_0_UTC]
-lista_tempi = pd.date_range('2026-07-20 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+# lista_tempi = pd.date_range('2026-09-01 00:00:00', adesso_0_UTC + pd.Timedelta(hours=1), freq='5min')
+lista_tempi = pd.date_range('2025-09-01 00:00:00', '2025-09-03 00:00:00', freq='5min')
 
 for adesso_0_UTC in lista_tempi:
     print(f"\n----------------\nSono le {datetime.now(timezone.utc).strftime('%H:%M:%S UTC del %Y-%m-%d')}")
