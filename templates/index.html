@@ -662,7 +662,7 @@
         },
         {
           id: "04",
-          nome: "Streets Light",
+          nome: "Streets Light (s)",
           strati: [
             {
               url:
@@ -787,7 +787,7 @@
         },
         {
           id: "12",
-          nome: "All black",
+          nome: "All black (b)",
           strati: [
             {
               url: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
@@ -830,7 +830,7 @@
       const DEFINIZIONI_SENTIERI = [
         {
           id: "hiking",
-          nome: "Escursionismo",
+          nome: "Escursionismo (e)",
           url: "https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png",
           opzioni: { maxZoom: 19, attribution: ATTRIBUZIONE_WAYMARKED },
         },
@@ -888,7 +888,12 @@
       // --- Shapefile: confini geografici statici, sovrapponibili insieme
       // (non esclusivi come mappa/sentieri: se ne possono attivare piu' d'uno).
       const DEFINIZIONI_SHAPEFILE = [
-        { id: "regioni", nome: "Regioni", colore: "#ffffff", spessore: 2.5 },
+        {
+          id: "regioni",
+          nome: "Regioni (r)",
+          colore: "#ffffff",
+          spessore: 2.5,
+        },
         {
           id: "comprensori",
           nome: "Comprensori",
@@ -897,7 +902,7 @@
         },
         { id: "bacini", nome: "Bacini", colore: "#17becf", spessore: 2 },
         { id: "comuni", nome: "Comuni", colore: "#d62728", spessore: 2 },
-        { id: "aree", nome: "Aree", colore: "#2ca02c", spessore: 2 },
+        { id: "aree", nome: "Aree (a)", colore: "#2ca02c", spessore: 2 },
       ];
 
       const livelliShapefile = {}; // id -> layer Leaflet, presente solo se attivo
@@ -3472,10 +3477,76 @@
           modaleLayer.hidden = true;
           bottoneLayer.classList.remove("attivo");
         });
+      // Selezione (gruppi esclusivi: mappa di base, sentiero) o toggle
+      // (gruppi multipli: shapefile) di una voce per nome, cercando la
+      // spuntina corrispondente e simulando il "change" che scatterebbe
+      // cliccandola: riusa la logica gia' collegata da registraScelteEsclusive
+      // / registraScelteMultiple, non la duplica.
+      function selezionaSceltaEsclusiva(contenitoreId, definizioni, nome) {
+        const id = definizioni.find((d) => d.nome === nome)?.id;
+        const casella = document
+          .getElementById(contenitoreId)
+          .querySelector('input[data-id="' + id + '"]');
+        if (!casella) return;
+        casella.checked = true;
+        casella.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      function attivaSceltaMultipla(contenitoreId, definizioni, nome) {
+        const id = definizioni.find((d) => d.nome === nome)?.id;
+        const casella = document
+          .getElementById(contenitoreId)
+          .querySelector('input[data-id="' + id + '"]');
+        if (!casella) return;
+        casella.checked = !casella.checked;
+        casella.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      // Scorciatoie da tastiera per il popup Layer, attive solo mentre e'
+      // aperto: b/s cambiano la mappa di base, e il sentiero, r/a accendono
+      // o spengono i confini shapefile (indipendenti tra loro).
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && !modaleLayer.hidden) {
           modaleLayer.hidden = true;
           bottoneLayer.classList.remove("attivo");
+        }
+        if (modaleLayer.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+        switch (e.key.toLowerCase()) {
+          case "b":
+            selezionaSceltaEsclusiva(
+              "scelteMappaLayer",
+              DEFINIZIONI_MAPPE,
+              "All black (b)",
+            );
+            break;
+          case "s":
+            selezionaSceltaEsclusiva(
+              "scelteMappaLayer",
+              DEFINIZIONI_MAPPE,
+              "Streets Light (s)",
+            );
+            break;
+          case "e":
+            selezionaSceltaEsclusiva(
+              "scelteSentieriLayer",
+              DEFINIZIONI_SENTIERI,
+              "Escursionismo (e)",
+            );
+            break;
+          case "r":
+            attivaSceltaMultipla(
+              "scelteShapefileLayer",
+              DEFINIZIONI_SHAPEFILE,
+              "Regioni (r)",
+            );
+            break;
+          case "a":
+            attivaSceltaMultipla(
+              "scelteShapefileLayer",
+              DEFINIZIONI_SHAPEFILE,
+              "Aree (a)",
+            );
+            break;
         }
       });
       rendiTrascinabile(
