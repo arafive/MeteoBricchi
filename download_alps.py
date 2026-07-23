@@ -31,6 +31,12 @@ from email.utils import parsedate_to_datetime
 
 import requests
 
+sys.path.insert(0, os.path.expanduser('~/.config'))
+from config_percorsi_Daniele import CARTELLA_REPO_ROOT
+
+cartella_lavoro = os.path.join(CARTELLA_REPO_ROOT, 'MeteoBricchi')
+os.chdir(cartella_lavoro)
+
 URL_BASE = "https://cmi-servizi.arpal.liguria.it/alps/"
 
 # Nome di una localita' valido (stesso pattern di NOME_SITO_ALPS_RE in

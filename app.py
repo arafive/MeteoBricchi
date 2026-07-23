@@ -292,6 +292,29 @@ def leggi_siti_alps(d):
     ]
 
 
+# Mappe giornaliere gia' pronte (PNG), come le foto Alps ma senza localita':
+# una sola immagine per l'intera regione, una per giorno. Chiave = "serie"
+# del bottone menu' (data-serie), valore = nome della sottocartella di
+# dati1D/dati_osservati/ e prefisso del file (uguali per ognuna):
+# dati1D/dati_osservati/<nome>/AAAA/MM/GG/<nome>_AAAA-MM-GG.png
+CARTELLA_OSSERVATI_GIORNALIERI = os.path.join(CARTELLA_SERIE, "dati_osservati")
+IMMAGINI_MEDIA_GIORNALIERA = {
+    "temp_media": "temp_media",
+    "prec_media": "prec_media",
+    "sst": "SST",
+    "sst_anomaly": "SST_ANOMALY",
+}
+
+
+def percorso_immagine_media_giornaliera(serie, d):
+    nome = IMMAGINI_MEDIA_GIORNALIERA[serie]
+    return os.path.join(
+        CARTELLA_OSSERVATI_GIORNALIERI, nome,
+        f"{d.year:04d}", f"{d.month:02d}", f"{d.day:02d}",
+        f"{nome}_{d.year:04d}-{d.month:02d}-{d.day:02d}.png",
+    )
+
+
 @app.route("/")
 def index():
     # Le stazioni non vengono più iniettate qui: dipendono dalla serie e
@@ -682,6 +705,25 @@ def alps_immagine(nome):
     except ValueError:
         abort(404)
     percorso = os.path.join(percorso_cartella_alps(d), f"{nome}.png")
+    if not os.path.exists(percorso):
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/png")
+    risposta.headers["Cache-Control"] = "public, max-age=86400"
+    return risposta
+
+
+@app.route("/media_giornaliera/immagine/<serie>.png")
+def media_giornaliera_immagine(serie):
+    """Mappa giornaliera gia' pronta (PNG) per temp_media/prec_media/sst/
+    sst_anomaly: stesso schema di /alps/immagine ma senza localita', una
+    sola immagine per l'intera regione. Parametro query: ?data=YYYY-MM-DD"""
+    if serie not in IMMAGINI_MEDIA_GIORNALIERA:
+        abort(404)
+    try:
+        d = datetime.date.fromisoformat(request.args.get("data", ""))
+    except ValueError:
+        abort(404)
+    percorso = percorso_immagine_media_giornaliera(serie, d)
     if not os.path.exists(percorso):
         abort(404)
     risposta = send_file(percorso, mimetype="image/png")

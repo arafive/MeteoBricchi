@@ -159,6 +159,54 @@
                   alt=""
                 />
               </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="temp_media"
+                title="Temperatura ECMWF-EPS"
+                aria-label="Temperatura ECMWF-EPS"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/temp_media.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="prec_media"
+                title="Pioggia ECMWF-EPS"
+                aria-label="Pioggia ECMWF-EPS"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/prec_media.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="sst"
+                title="SST"
+                aria-label="SST"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/SST.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="sst_anomaly"
+                title="SST Anomaly"
+                aria-label="SST Anomaly"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/SST_ANOMALY.svg') }}"
+                  alt=""
+                />
+              </button>
             </div>
           </div>
 
@@ -1123,6 +1171,26 @@
           icona: "{{ url_for('static', filename='icone/pioggia.svg') }}",
         },
       };
+
+      // SERIE senza stazioni: un'unica mappa giornaliera gia' pronta (PNG),
+      // per l'intera regione. Il click sul bottone apre subito la finestra
+      // al centro (vedi apriMediaGiornaliera), non passa da caricaStazioni.
+      const DESCRITTORI_SERIE_MEDIA = {
+        temp_media: {
+          etichetta: "Temperatura ECMWF-EPS",
+          larghezzaMassima: 1300,
+        },
+        prec_media: { etichetta: "Pioggia ECMWF-EPS", larghezzaMassima: 1300 },
+        sst: { etichetta: "SST" },
+        sst_anomaly: { etichetta: "SST Anomaly" },
+      };
+      const SERIE_MEDIA_GIORNALIERA = new Set(
+        Object.keys(DESCRITTORI_SERIE_MEDIA),
+      );
+      const ICONA_GIORNO_INDIETRO =
+        "{{ url_for('static', filename='icone/freccia_sinistra.svg') }}";
+      const ICONA_GIORNO_AVANTI =
+        "{{ url_for('static', filename='icone/freccia_destra.svg') }}";
 
       // Prodotto satellite attualmente scelto (geocolour|sandwich): non
       // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
@@ -2174,7 +2242,26 @@
           .catch(() => gruppoStazioni.clearLayers());
       }
 
-      // Porta una finestra in primo piano e la segna come "attiva" (quella
+      // Le SERIE in SERIE_MEDIA_GIORNALIERA non hanno stazioni da cliccare:
+      // il bottone del menu' apre direttamente la finestra al centro con la
+      // mappa gia' pronta per la data corrente (vedi creaFinestraGrafico,
+      // ramo s.immagineUrl).
+      function apriMediaGiornaliera(serie) {
+        const stato = statoMenu(); // { data, serie }
+        creaFinestraGrafico({
+          codice: "MEDIA_" + serie,
+          nome: DESCRITTORI_SERIE_MEDIA[serie].etichetta,
+          data: stato.data.slice(0, 10),
+          costruisciUrlImmagine: (data) =>
+            "/media_giornaliera/immagine/" +
+            encodeURIComponent(serie) +
+            ".png?data=" +
+            encodeURIComponent(data),
+          larghezzaMassima: DESCRITTORI_SERIE_MEDIA[serie].larghezzaMassima,
+        });
+      }
+
+      // Porta una finestra in primo piano
       // che Esc chiudera')
       function portaInPrimoPiano(codice) {
         const f = finestreAperte.get(codice);
@@ -2226,8 +2313,17 @@
       // limitano comunque a 95vw/90vh per le foto piu' grandi dello
       // schermo), mantenendo fermo il centro della finestra.
       const ALPS_PADDING_ORIZZONTALE = 40; // .modale-finestra: padding 18px 20px
-      const ALPS_SPAZIO_TITOLO = 74; // padding verticale + riga del titolo
-      function ridimensionaFinestraAllaFoto(elFinestra, largFoto, altFoto) {
+      const ALPS_SPAZIO_TITOLO = 116; // padding verticale + riga del titolo
+      function ridimensionaFinestraAllaFoto(
+        elFinestra,
+        largFoto,
+        altFoto,
+        larghezzaMassima,
+      ) {
+        if (larghezzaMassima && largFoto > larghezzaMassima) {
+          altFoto = (altFoto * larghezzaMassima) / largFoto;
+          largFoto = larghezzaMassima;
+        }
         const larghezza = largFoto + ALPS_PADDING_ORIZZONTALE;
         const altezza = altFoto + ALPS_SPAZIO_TITOLO;
         const rect = elFinestra.getBoundingClientRect();
@@ -2259,12 +2355,22 @@
           elFinestra,
           grafico: null,
           appenaCreato: false,
+          soloImmagine: Boolean(s.alps || s.costruisciUrlImmagine), // niente serie temporale: vedi disegnaGraficoFinestra
         };
         finestreAperte.set(s.codice, stato);
 
         if (s.alps) {
-          // Stazione Alps: niente serie temporale ne' selettore, solo il
-          // titolo e la foto della localita'.
+          // Stazione Alps: niente serie temporale ne' selettore; titolo,
+          // frecce cambio giorno e foto della localita'.
+          stato.data = s.data; // giorno iniziale, poi gestito dalle frecce
+          stato.costruisciUrlImmagine = (data) =>
+            "/alps/immagine/" +
+            encodeURIComponent(s.nome) +
+            ".png?data=" +
+            encodeURIComponent(data);
+
+          const elNavigazioneGiorno = creaNavigazioneGiorno(s.codice);
+
           const elImmagine = document.createElement("img");
           elImmagine.className = "grafico-popup nessun-placeholder";
           elImmagine.alt = "";
@@ -2278,32 +2384,120 @@
               elImmagine.naturalHeight,
             ),
           );
-          elImmagine.src =
-            "/alps/immagine/" +
-            encodeURIComponent(s.nome) +
-            ".png?data=" +
-            encodeURIComponent(s.data);
+          elImmagine.src = stato.costruisciUrlImmagine(stato.data);
 
-          elFinestra.append(elChiudi, elTitolo, elImmagine);
+          elFinestra.append(
+            elChiudi,
+            elTitolo,
+            elNavigazioneGiorno,
+            elImmagine,
+          );
           finestreGrafici.appendChild(elFinestra);
           // Placeholder quasi quadrato finche' la foto non e' caricata (poi
           // ridimensionaFinestraAllaFoto la adatta alle proporzioni vere)
           posizionaFinestraFissa(elFinestra, 640, 640);
+
+          stato.elImmagine = elImmagine;
+          stato.elGiornoLabel =
+            elNavigazioneGiorno.querySelector(".etichetta-giorno");
+          aggiornaEtichettaGiornoFinestra(stato);
+        } else if (s.costruisciUrlImmagine) {
+          // Come sopra ma per temp_media/prec_media/sst/sst_anomaly: la
+          // funzione che costruisce l'URL e' generica (nessuna localita'
+          // da codificare nel percorso).
+          stato.data = s.data;
+          stato.costruisciUrlImmagine = s.costruisciUrlImmagine;
+
+          const elNavigazioneGiorno = creaNavigazioneGiorno(s.codice);
+
+          const elImmagine = document.createElement("img");
+          elImmagine.className = "grafico-popup nessun-placeholder";
+          elImmagine.alt = "";
+          elImmagine.style.width = "100%";
+          elImmagine.style.height = "100%";
+          elImmagine.style.objectFit = "contain";
+          elImmagine.addEventListener("load", () =>
+            ridimensionaFinestraAllaFoto(
+              elFinestra,
+              elImmagine.naturalWidth,
+              elImmagine.naturalHeight,
+              s.larghezzaMassima,
+            ),
+          );
+          elImmagine.src = stato.costruisciUrlImmagine(stato.data);
+
+          elFinestra.append(
+            elChiudi,
+            elTitolo,
+            elNavigazioneGiorno,
+            elImmagine,
+          );
+          finestreGrafici.appendChild(elFinestra);
+          posizionaFinestraFissa(elFinestra, 640, 640);
+
+          stato.elImmagine = elImmagine;
+          stato.elGiornoLabel =
+            elNavigazioneGiorno.querySelector(".etichetta-giorno");
+          aggiornaEtichettaGiornoFinestra(stato);
         } else {
+          stato.data = statoMenu().data.slice(0, 10); // giorno proprio della finestra, indipendente da "Data"
+
           const elSelettoreSerie = document.createElement("div");
           elSelettoreSerie.className = "selettore-serie-popup";
           elSelettoreSerie.hidden = true;
+
+          const elNavigazioneGiorno = document.createElement("div");
+          elNavigazioneGiorno.className = "navigazione-giorno-popup";
+
+          const elGiornoIndietro = document.createElement("button");
+          elGiornoIndietro.type = "button";
+          elGiornoIndietro.className = "bottone-giorno-popup";
+          elGiornoIndietro.title = "Giorno precedente";
+          elGiornoIndietro.setAttribute("aria-label", "Giorno precedente");
+          elGiornoIndietro.innerHTML =
+            '<img src="' + ICONA_GIORNO_INDIETRO + '" alt="">';
+          elGiornoIndietro.addEventListener("click", () =>
+            cambiaGiornoFinestra(s.codice, -1),
+          );
+
+          const elGiornoEtichetta = document.createElement("span");
+          elGiornoEtichetta.className = "etichetta-giorno";
+
+          const elGiornoAvanti = document.createElement("button");
+          elGiornoAvanti.type = "button";
+          elGiornoAvanti.className = "bottone-giorno-popup";
+          elGiornoAvanti.title = "Giorno successivo";
+          elGiornoAvanti.setAttribute("aria-label", "Giorno successivo");
+          elGiornoAvanti.innerHTML =
+            '<img src="' + ICONA_GIORNO_AVANTI + '" alt="">';
+          elGiornoAvanti.addEventListener("click", () =>
+            cambiaGiornoFinestra(s.codice, 1),
+          );
+
+          elNavigazioneGiorno.append(
+            elGiornoIndietro,
+            elGiornoEtichetta,
+            elGiornoAvanti,
+          );
 
           const elGrafico = document.createElement("div");
           elGrafico.className = "grafico-popup";
           elGrafico.textContent = "(carico...)";
 
-          elFinestra.append(elChiudi, elTitolo, elSelettoreSerie, elGrafico);
+          elFinestra.append(
+            elChiudi,
+            elTitolo,
+            elSelettoreSerie,
+            elNavigazioneGiorno,
+            elGrafico,
+          );
           finestreGrafici.appendChild(elFinestra);
-          posizionaFinestraIniziale(elFinestra, 1200, 560);
+          posizionaFinestraIniziale(elFinestra, 1200, 700);
 
           stato.elSelettoreSerie = elSelettoreSerie;
           stato.elGrafico = elGrafico;
+          stato.elGiornoLabel = elGiornoEtichetta;
+          aggiornaEtichettaGiornoFinestra(stato);
 
           // ECharts non si ridimensiona da solo se cambiano le dimensioni
           // del contenitore per altre vie (qui: trascinando l'angolo della
@@ -2330,7 +2524,7 @@
 
         portaInPrimoPiano(s.codice);
 
-        if (!s.alps) {
+        if (!s.alps && !s.costruisciUrlImmagine) {
           caricaSerieDisponibiliPopup(s.codice);
           disegnaGraficoFinestra(s.codice);
         }
@@ -2377,6 +2571,84 @@
         disegnaGraficoFinestra(codice);
       }
 
+      // Cambia il giorno mostrato in UNA finestra (frecce avanti/indietro),
+      // senza toccare il campo "Data" in alto ne' le altre finestre aperte.
+      function cambiaGiornoFinestra(codice, delta) {
+        const f = finestreAperte.get(codice);
+        if (!f) return;
+        const d = new Date(f.data + "T00:00:00");
+        d.setDate(d.getDate() + delta);
+        f.data =
+          d.getFullYear() +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getDate()).padStart(2, "0");
+        aggiornaEtichettaGiornoFinestra(f);
+        disegnaGraficoFinestra(codice);
+      }
+
+      function aggiornaEtichettaGiornoFinestra(f) {
+        const [aa, mm, gg] = f.data.split("-");
+        f.elGiornoLabel.textContent = gg + "-" + mm + "-" + aa;
+      }
+
+      // Riga con le due frecce cambio giorno, usata da tutte le finestre
+      // "sola immagine" (Alps, temp_media/prec_media/sst/sst_anomaly).
+      function creaNavigazioneGiorno(codice) {
+        const elNavigazioneGiorno = document.createElement("div");
+        elNavigazioneGiorno.className = "navigazione-giorno-popup";
+
+        const elGiornoIndietro = document.createElement("button");
+        elGiornoIndietro.type = "button";
+        elGiornoIndietro.className = "bottone-giorno-popup";
+        elGiornoIndietro.title = "Giorno precedente";
+        elGiornoIndietro.setAttribute("aria-label", "Giorno precedente");
+        elGiornoIndietro.innerHTML =
+          '<img src="' + ICONA_GIORNO_INDIETRO + '" alt="">';
+        elGiornoIndietro.addEventListener("click", () =>
+          cambiaGiornoFinestraImmagine(codice, -1),
+        );
+
+        const elGiornoEtichetta = document.createElement("span");
+        elGiornoEtichetta.className = "etichetta-giorno";
+
+        const elGiornoAvanti = document.createElement("button");
+        elGiornoAvanti.type = "button";
+        elGiornoAvanti.className = "bottone-giorno-popup";
+        elGiornoAvanti.title = "Giorno successivo";
+        elGiornoAvanti.setAttribute("aria-label", "Giorno successivo");
+        elGiornoAvanti.innerHTML =
+          '<img src="' + ICONA_GIORNO_AVANTI + '" alt="">';
+        elGiornoAvanti.addEventListener("click", () =>
+          cambiaGiornoFinestraImmagine(codice, 1),
+        );
+
+        elNavigazioneGiorno.append(
+          elGiornoIndietro,
+          elGiornoEtichetta,
+          elGiornoAvanti,
+        );
+        return elNavigazioneGiorno;
+      }
+
+      // Come cambiaGiornoFinestra, ma per le finestre "sola immagine":
+      // ricostruisce l'URL della foto invece di richiedere una serie.
+      function cambiaGiornoFinestraImmagine(codice, delta) {
+        const f = finestreAperte.get(codice);
+        if (!f) return;
+        const d = new Date(f.data + "T00:00:00");
+        d.setDate(d.getDate() + delta);
+        f.data =
+          d.getFullYear() +
+          "-" +
+          String(d.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(d.getDate()).padStart(2, "0");
+        aggiornaEtichettaGiornoFinestra(f);
+        f.elImmagine.src = f.costruisciUrlImmagine(f.data);
+      }
+
       // Chiude una finestra: libera l'istanza ECharts e l'observer (se
       // presenti: le finestre Alps non li hanno, vedi creaFinestraGrafico)
       function chiudiFinestraGrafico(codice) {
@@ -2389,6 +2661,16 @@
         f.elFinestra.remove();
         finestreAperte.delete(codice);
         if (finestraAttiva === codice) finestraAttiva = null;
+
+        // Le finestre di "media giornaliera" sono 1:1 col bottone del menu'
+        // (non c'e' una stazione dietro): chiudendole con la X, il bottone
+        // deve tornare non attivo, altrimenti selezionaSerie lo leggerebbe
+        // ancora come "gia' attiva" al click successivo e lo spegnerebbe
+        // invece di riaprirlo.
+        if (serieAttiva && codice === "MEDIA_" + serieAttiva) {
+          serieAttiva = null;
+          bottoniSerie.forEach((b) => b.classList.remove("attivo"));
+        }
       }
 
       // Chiude tutte le finestre grafico aperte (es. al cambio di SERIE nel
@@ -2402,15 +2684,14 @@
       // Scarica la SERIE temporale di una stazione e la disegna nella sua finestra
       function disegnaGraficoFinestra(codice) {
         const f = finestreAperte.get(codice);
-        if (!f) return;
-        const stato = statoMenu(); // { data, serie }
+        if (!f || f.soloImmagine) return; // finestre "sola immagine" (Alps, mappe giornaliere): niente da disegnare
         const url =
           "/serie/" +
           encodeURIComponent(codice) +
           "?serie=" +
           encodeURIComponent(f.serie) +
           "&data=" +
-          encodeURIComponent(stato.data.slice(0, 10)); // solo AAAA-MM-GG: il backend lavora per giorno intero
+          encodeURIComponent(f.data); // giorno proprio della finestra (frecce avanti/indietro), scollegato da "Data"
 
         fetch(url)
           .then((r) => {
@@ -2743,8 +3024,16 @@
               : new Date(formattaDataOraUTC(new Date())).getTime(), // stesso ripiego di istanteCorrenteMs
           );
         }
-        if (serieAttiva) caricaStazioni(serieAttiva); // la disponibilita' dipende dalla data
-        finestreAperte.forEach((_, codice) => disegnaGraficoFinestra(codice));
+        if (serieAttiva && !SERIE_MEDIA_GIORNALIERA.has(serieAttiva)) {
+          caricaStazioni(serieAttiva); // la disponibilita' dipende dalla data
+        }
+        const nuovaData = statoMenu().data.slice(0, 10);
+        finestreAperte.forEach((f, codice) => {
+          if (f.soloImmagine) return; // Alps/media giornaliera non hanno un giorno "proprio" da risincronizzare
+          f.data = nuovaData; // la Data globale sovrascrive un'eventuale navigazione fatta con le frecce
+          aggiornaEtichettaGiornoFinestra(f);
+          disegnaGraficoFinestra(codice);
+        });
       }
 
       // Il browser limita solo le frecce su/giu' al multiplo di 5: i minuti
@@ -2893,7 +3182,11 @@
           bottoniSerie.forEach((b) =>
             b.classList.toggle("attivo", b.dataset.serie === serie),
           );
-          caricaStazioni(serie);
+          if (SERIE_MEDIA_GIORNALIERA.has(serie)) {
+            apriMediaGiornaliera(serie);
+          } else {
+            caricaStazioni(serie);
+          }
         }
       }
       bottoniSerie.forEach((b) =>

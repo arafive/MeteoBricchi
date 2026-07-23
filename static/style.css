@@ -339,6 +339,44 @@ body {
   background: #e3ecfd;
 }
 
+.navigazione-giorno-popup {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.navigazione-giorno-popup .bottone-giorno-popup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0;
+  background: #f0f2f5;
+  border: 1px solid #d3d9e0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.navigazione-giorno-popup .bottone-giorno-popup img {
+  width: 16px;
+  height: 16px;
+}
+
+.navigazione-giorno-popup .bottone-giorno-popup:hover {
+  border-color: #9aa5b1;
+}
+
+.navigazione-giorno-popup .etichetta-giorno {
+  font: 600 13px system-ui;
+  color: #1f2933;
+  min-width: 80px;
+  text-align: center;
+}
+
 .modale-chiudi {
   position: absolute;
   top: 6px;
