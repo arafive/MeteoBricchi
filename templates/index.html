@@ -229,6 +229,19 @@
               <button
                 type="button"
                 class="bottone-campo"
+                data-campo="radar_cumulate"
+                title="Cumulate radar"
+                aria-label="Cumulare radar"
+                disabled
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/radar_cumulate.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
                 data-campo="riflettivita"
                 title="Riflettività"
                 aria-label="Riflettività"
@@ -304,6 +317,7 @@
                 data-campo="irene"
                 title="IRENE"
                 aria-label="IRENE"
+                disabled
               >
                 <img
                   src="{{ url_for('static', filename='icone/irene.svg') }}"
@@ -313,48 +327,24 @@
               <button
                 type="button"
                 class="bottone-campo"
-                data-campo="caldo_obs"
-                title="Heat Index Osservato"
-                aria-label="Heat Index Osservato"
+                data-campo="caldo"
+                title="Heat Index"
+                aria-label="Heat Index"
               >
                 <img
-                  src="{{ url_for('static', filename='icone/caldo_obs.svg') }}"
+                  src="{{ url_for('static', filename='icone/caldo.svg') }}"
                   alt=""
                 />
               </button>
               <button
                 type="button"
                 class="bottone-campo"
-                data-campo="caldo_prev"
-                title="Heat Index Previsto"
-                aria-label="Heat Index Previsto"
+                data-campo="freddo"
+                title="Wind Chill"
+                aria-label="Wind Chill"
               >
                 <img
-                  src="{{ url_for('static', filename='icone/caldo_prev.svg') }}"
-                  alt=""
-                />
-              </button>
-              <button
-                type="button"
-                class="bottone-campo"
-                data-campo="freddo_obs"
-                title="Wind Chill Osservato"
-                aria-label="Wind Chill Osservato"
-              >
-                <img
-                  src="{{ url_for('static', filename='icone/freddo_obs.svg') }}"
-                  alt=""
-                />
-              </button>
-              <button
-                type="button"
-                class="bottone-campo"
-                data-campo="freddo_prev"
-                title="Wind Chill Previsto"
-                aria-label="Wind Chill Previsto"
-              >
-                <img
-                  src="{{ url_for('static', filename='icone/freddo_prev.svg') }}"
+                  src="{{ url_for('static', filename='icone/freddo.svg') }}"
                   alt=""
                 />
               </button>
@@ -518,6 +508,28 @@
           <label>
             <input type="radio" name="livelloEchotop" value="45" />
             45 dBZ
+          </label>
+        </div>
+
+        <div id="controlliProdottoCaldo" class="controlli-satellite" hidden>
+          <label>
+            <input type="radio" name="prodottoCaldo" value="obs" checked />
+            Osservato
+          </label>
+          <label>
+            <input type="radio" name="prodottoCaldo" value="prev" />
+            Previsto
+          </label>
+        </div>
+
+        <div id="controlliProdottoFreddo" class="controlli-satellite" hidden>
+          <label>
+            <input type="radio" name="prodottoFreddo" value="obs" checked />
+            Osservato
+          </label>
+          <label>
+            <input type="radio" name="prodottoFreddo" value="prev" />
+            Previsto
           </label>
         </div>
       </div>
@@ -1043,6 +1055,12 @@
       const controlliEchotopLivello = document.getElementById(
         "controlliEchotopLivello",
       );
+      const controlliProdottoCaldo = document.getElementById(
+        "controlliProdottoCaldo",
+      );
+      const controlliProdottoFreddo = document.getElementById(
+        "controlliProdottoFreddo",
+      );
       document
         .querySelectorAll('input[name="livelloEchotop"]')
         .forEach((radio) =>
@@ -1056,6 +1074,41 @@
               accendiCampoTemporale("echotop");
           }),
         );
+
+      // "caldo"/"freddo" sono campi virtuali: dietro c'e' sempre uno dei due
+      // campi veri di CARTELLE_RADAR (_obs/_prev), scelto qui. Come
+      // prodottoSatellite, la scelta non si azzera spegnendo il bottone.
+      const CAMPO_OBS_PREV = {
+        caldo: { obs: "caldo_obs", prev: "caldo_prev" },
+        freddo: { obs: "freddo_obs", prev: "freddo_prev" },
+      };
+      const prodottoObsPrev = { caldo: "obs", freddo: "obs" };
+      const RADIO_PRODOTTO_OBS_PREV = {};
+      Object.keys(CAMPO_OBS_PREV).forEach((campo) => {
+        const nomeRadio =
+          "prodotto" + campo.charAt(0).toUpperCase() + campo.slice(1);
+        const radios = document.querySelectorAll(
+          'input[name="' + nomeRadio + '"]',
+        );
+        RADIO_PRODOTTO_OBS_PREV[campo] = radios;
+        radios.forEach((radio) =>
+          radio.addEventListener("change", () => {
+            if (!radio.checked) return;
+            prodottoObsPrev[campo] = radio.value;
+            if (campiAttivi.includes(campo)) {
+              accendiCampoTemporale(campo);
+              const elNome = radarEtichette.querySelector(
+                '.radar-colonna[data-campo="' +
+                  campo +
+                  '"] .radar-colonna-nome',
+              );
+              if (elNome) impostaEtichettaColonna(elNome, campo);
+            }
+          }),
+        );
+      });
+
+      // Fino a 3 colorbar mostrabili insieme
       // Fino a 3 colorbar mostrabili insieme
       // che ne ha una, radar/riflettivita/vert_int_liq/caldo_obs/freddo_obs; fulmini
       // e satellite non ne hanno)
@@ -1131,29 +1184,21 @@
             finestraFulminiMin +
             ".png",
         },
-        caldo_obs: {
+        caldo: {
           tipo: "immagine",
-          etichetta: "Heat Index Osservato",
-          colorbar:
-            "{{ url_for('static', filename='icone/colorbar_heatindex2D_obs.png') }}",
+          etichetta: "Heat Index",
+          colorbar: () =>
+            prodottoObsPrev.caldo === "prev"
+              ? "{{ url_for('static', filename='icone/colorbar_heatindex2D_prev.png') }}"
+              : "{{ url_for('static', filename='icone/colorbar_heatindex2D_obs.png') }}",
         },
-        freddo_obs: {
+        freddo: {
           tipo: "immagine",
-          etichetta: "Wind Chill Osservato",
-          colorbar:
-            "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
-        },
-        caldo_prev: {
-          tipo: "immagine",
-          etichetta: "Heat Index Previsto",
-          colorbar:
-            "{{ url_for('static', filename='icone/colorbar_heatindex2D_prev.png') }}",
-        },
-        freddo_prev: {
-          tipo: "immagine",
-          etichetta: "Wind Chill Previsto",
-          colorbar:
-            "{{ url_for('static', filename='icone/colorbar_windchill2D_prev.png') }}",
+          etichetta: "Wind Chill",
+          colorbar: () =>
+            prodottoObsPrev.freddo === "prev"
+              ? "{{ url_for('static', filename='icone/colorbar_windchill2D_prev.png') }}"
+              : "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
         },
         satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
@@ -1409,6 +1454,12 @@
           finestra.textContent =
             " (" + formattaFinestraFulminiCompatta(finestraFulminiMin) + ")";
           elNome.appendChild(finestra);
+        } else if (CAMPO_OBS_PREV[campo]) {
+          const fonte = document.createElement("span");
+          fonte.className = "radar-colonna-finestra";
+          fonte.textContent =
+            prodottoObsPrev[campo] === "prev" ? " (Previsto)" : " (Osservato)";
+          elNome.appendChild(fonte);
         }
       }
 
@@ -1537,7 +1588,11 @@
 
       function aggiornaBottoniRadar() {
         radarIndietro.disabled = indiceIstante <= 0;
-        radarAvanti.disabled = indiceIstante >= listaIstanti.length - 1;
+        const passaggioPossibile = campiAttivi.some(
+          (c) => CAMPO_OBS_PREV[c] && prodottoObsPrev[c] === "obs",
+        );
+        radarAvanti.disabled =
+          indiceIstante >= listaIstanti.length - 1 && !passaggioPossibile;
       }
 
       // Unisce gli istanti di tutti i campi attivi in un'unica sequenza
@@ -1616,6 +1671,9 @@
           // Per NOME, non per indice: vedi commento nella route Flask
           // /immagine/<nome>.<estensione> sul perche'.
           const nomeFrame = listaFrameCampo[campo].nomi[indice];
+          const campoVero = CAMPO_OBS_PREV[campo]
+            ? CAMPO_OBS_PREV[campo][prodottoObsPrev[campo]]
+            : campo;
           voce = new Image();
           voce.src =
             "/immagine/" +
@@ -1623,7 +1681,7 @@
             "." +
             (descr.estensione || "png") +
             "?campo=" +
-            encodeURIComponent(campo);
+            encodeURIComponent(campoVero);
         } else {
           // Per NOME, non per indice: stesso motivo delle immagini radar,
           // vedi la route Flask /fulmini/dati/<nome>.
@@ -2016,6 +2074,8 @@
         controlliSatellite.hidden = !campiAttivi.includes("satellite");
         controlliFulminiTipo.hidden = !campiAttivi.includes("fulmini");
         controlliEchotopLivello.hidden = !campiAttivi.includes("echotop");
+        controlliProdottoCaldo.hidden = !campiAttivi.includes("caldo");
+        controlliProdottoFreddo.hidden = !campiAttivi.includes("freddo");
         if (!temporaliAttivi) return;
 
         if (listaIstanti.length > 0) {
@@ -2033,15 +2093,74 @@
         if (indiceIstante > 0) mostraIstante(indiceIstante - 1);
       }
       function radarVaiAvanti() {
-        if (indiceIstante < listaIstanti.length - 1)
+        if (indiceIstante < listaIstanti.length - 1) {
           mostraIstante(indiceIstante + 1);
+        } else {
+          provaPassaggioAPrevisto();
+        }
+      }
+
+      // Se un campo caldo/freddo attivo e' fermo sull'Osservato e siamo
+      // all'ultimo istante disponibile, controlla se il Previsto arriva
+      // oltre e in caso passa li' in automatico, invece di restare bloccati
+      // sulla freccia avanti.
+      function provaPassaggioAPrevisto() {
+        const daProvare = campiAttivi.filter(
+          (c) => CAMPO_OBS_PREV[c] && prodottoObsPrev[c] === "obs",
+        );
+        if (!daProvare.length || !listaIstanti.length) return;
+        const target = listaIstanti[listaIstanti.length - 1];
+
+        Promise.all(
+          daProvare.map((campo) =>
+            fetch(
+              "/radar/lista?campo=" +
+                encodeURIComponent(CAMPO_OBS_PREV[campo].prev),
+            )
+              .then((r) => (r.ok ? r.json() : null))
+              .then((info) => ({ campo, info })),
+          ),
+        ).then((risultati) => {
+          let passato = false;
+          risultati.forEach(({ campo, info }) => {
+            if (!info || !info.totale) return;
+            const ultimo = parseIstante(info.nomi[info.nomi.length - 1]);
+            if (ultimo === null || ultimo <= target) return;
+            prodottoObsPrev[campo] = "prev";
+            RADIO_PRODOTTO_OBS_PREV[campo].forEach((r) => {
+              r.checked = r.value === "prev";
+            });
+            listaFrameCampo[campo] = {
+              nomi: info.nomi,
+              bounds: info.bounds || null,
+              totale: info.totale,
+            };
+            cachePrecaricamento[campo] = new Map();
+            const elNome = radarEtichette.querySelector(
+              '.radar-colonna[data-campo="' + campo + '"] .radar-colonna-nome',
+            );
+            if (elNome) impostaEtichettaColonna(elNome, campo);
+            passato = true;
+          });
+          if (passato) {
+            costruisciListaIstanti();
+            const successivo = listaIstanti.find((t) => t > target);
+            mostraIstante(
+              successivo !== undefined
+                ? listaIstanti.indexOf(successivo)
+                : listaIstanti.length - 1,
+            );
+          }
+        });
       }
 
       radarIndietro.addEventListener("click", radarVaiIndietro);
       radarAvanti.addEventListener("click", radarVaiAvanti);
 
       document.addEventListener("keydown", (e) => {
-        if (controlliRadar.hidden) return;
+        // Se c'e' una finestra Stazioni in primo piano, le frecce muovono
+        // quella (vedi piu' sotto), non l'animazione del campo 2D.
+        if (controlliRadar.hidden || finestreAperte.has(finestraAttiva)) return;
 
         if (e.key === "ArrowLeft") {
           e.preventDefault();
@@ -2060,6 +2179,10 @@
         }
         if (campo === "echotop") {
           return "/echotop/lista?livello=" + encodeURIComponent(livelloEchotop);
+        }
+        if (CAMPO_OBS_PREV[campo]) {
+          const campoVero = CAMPO_OBS_PREV[campo][prodottoObsPrev[campo]];
+          return "/radar/lista?campo=" + encodeURIComponent(campoVero);
         }
         return DESCRITTORI_CAMPO[campo].tipo === "immagine"
           ? "/radar/lista?campo=" + encodeURIComponent(campo)
@@ -2654,6 +2777,23 @@
         f.elImmagine.src = f.costruisciUrlImmagine(f.data);
       }
 
+      // Frecce sinistra/destra = muovi il giorno della finestra Stazioni in
+      // primo piano (grafico o immagine), come i bottoni con le frecce.
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        const tag = document.activeElement && document.activeElement.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        const f = finestreAperte.get(finestraAttiva);
+        if (!f) return;
+        e.preventDefault();
+        const delta = e.key === "ArrowLeft" ? -1 : 1;
+        if (f.soloImmagine) {
+          cambiaGiornoFinestraImmagine(finestraAttiva, delta);
+        } else {
+          cambiaGiornoFinestra(finestraAttiva, delta);
+        }
+      });
+
       // Chiude una finestra: libera l'istanza ECharts e l'observer (se
       // presenti: le finestre Alps non li hanno, vedi creaFinestraGrafico)
       function chiudiFinestraGrafico(codice) {
@@ -3032,12 +3172,16 @@
         if (serieAttiva && !SERIE_MEDIA_GIORNALIERA.has(serieAttiva)) {
           caricaStazioni(serieAttiva); // la disponibilita' dipende dalla data
         }
+
         const nuovaData = statoMenu().data.slice(0, 10);
         finestreAperte.forEach((f, codice) => {
-          if (f.soloImmagine) return; // Alps/media giornaliera non hanno un giorno "proprio" da risincronizzare
           f.data = nuovaData; // la Data globale sovrascrive un'eventuale navigazione fatta con le frecce
           aggiornaEtichettaGiornoFinestra(f);
-          disegnaGraficoFinestra(codice);
+          if (f.soloImmagine) {
+            f.elImmagine.src = f.costruisciUrlImmagine(f.data);
+          } else {
+            disegnaGraficoFinestra(codice);
+          }
         });
       }
 

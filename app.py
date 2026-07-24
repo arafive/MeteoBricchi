@@ -727,7 +727,10 @@ def media_giornaliera_immagine(serie):
     if not os.path.exists(percorso):
         abort(404)
     risposta = send_file(percorso, mimetype="image/png")
-    risposta.headers["Cache-Control"] = "public, max-age=86400"
+    # A differenza delle altre immagini (radar, satellite, alps...), queste
+    # 4 possono essere rigenerate piu' volte nella stessa giornata: niente
+    # cache, va rifatta la richiesta ogni volta.
+    risposta.headers["Cache-Control"] = "no-store"
     return risposta
 
 

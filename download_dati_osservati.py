@@ -38,8 +38,10 @@ for cartella, url in zip(cartelle_immagini, url_immagini):
     
     nome_file = f"{cartella}_{oggi.strftime('%Y-%m-%d')}.png"
     percorso = cartella_output / nome_file
+    
     r = requests.get(url, headers=headers, timeout=30)
     r.raise_for_status()
+    
     percorso.write_bytes(r.content)
     print(f"Scaricato: {nome_file}")
     

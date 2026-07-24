@@ -434,6 +434,14 @@ body {
   background: #24344a;
 }
 
+#menu .bottone-serie:disabled,
+#menu .bottone-campo:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: #3e4c59;
+  background: #323f4b;
+}
+
 .leaflet-tile {
   outline: 1px solid transparent;
 }

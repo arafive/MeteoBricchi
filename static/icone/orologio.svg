@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   viewBox="-5.0 -10.0 110.0 135.0"
+   id="svg8"
+   sodipodi:docname="orologio.svg"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs12" />
+  <sodipodi:namedview
+     id="namedview10"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     showgrid="false"
+     inkscape:zoom="5.0518519"
+     inkscape:cx="54.930352"
+     inkscape:cy="67.5"
+     inkscape:window-width="1920"
+     inkscape:window-height="1027"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8" />
+  <path
+     d="m46.875 3.125c25.871 0 46.875 21.004 46.875 46.875s-21.004 46.875-46.875 46.875-46.875-21.004-46.875-46.875 21.004-46.875 46.875-46.875zm0 6.25c-22.422 0-40.625 18.203-40.625 40.625s18.203 40.625 40.625 40.625 40.625-18.203 40.625-40.625-18.203-40.625-40.625-40.625zm-3.125 14.062c0-1.7266 1.3984-3.125 3.125-3.125s3.125 1.3984 3.125 3.125v23.977c0 0.82813 0.32812 1.6211 0.91406 2.207l15.359 15.355c1.2188 1.2188 1.2188 3.2031 0 4.4219s-3.2031 1.2188-4.4219 0l-15.355-15.359c-1.7578-1.7578-2.7461-4.1406-2.7461-6.625z"
+     fill-rule="evenodd"
+     id="path2" />
+</svg>
