@@ -5,3 +5,4 @@ static/echarts
 static/icone/.fuse*
 shapefile/
 sync_dati2D_da_casa.sh
+*tmp*

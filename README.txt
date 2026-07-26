@@ -14,6 +14,7 @@ README.txt
 
 --- Grafici 2D
     Aggiungi IRENE.
+    Aggiungi cumulate radar (30min, 1h, 3h, 12h)
 
 --- Altro
     Logo meteobricchi.

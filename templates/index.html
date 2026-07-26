@@ -1226,11 +1226,8 @@
       // per l'intera regione. Il click sul bottone apre subito la finestra
       // al centro (vedi apriMediaGiornaliera), non passa da caricaStazioni.
       const DESCRITTORI_SERIE_MEDIA = {
-        temp_media: {
-          etichetta: "Temperatura ECMWF-EPS",
-          larghezzaMassima: 1300,
-        },
-        prec_media: { etichetta: "Pioggia ECMWF-EPS", larghezzaMassima: 1300 },
+        temp_media: { etichetta: "Temperatura ECMWF-EPS" },
+        prec_media: { etichetta: "Pioggia ECMWF-EPS" },
         sst: { etichetta: "SST" },
         sst_anomaly: { etichetta: "SST Anomaly" },
       };
@@ -1879,7 +1876,7 @@
         aggiornaBottoniRadar();
 
         const istante = listaIstanti[indice];
-        inputData.value = formattaDataOraSenzaArrotondare(new Date(istante));
+        impostaInputData(formattaDataOraSenzaArrotondare(new Date(istante)));
         aggiornaEtichetteRadar(istante);
 
         campiAttivi.forEach((campo) => {
@@ -2416,11 +2413,23 @@
         const baseX = Math.max(20, (window.innerWidth - larghezza) / 2);
         const baseY = Math.max(20, (window.innerHeight - altezza) / 2);
         const offset = (cascataGrafici++ % 8) * 28;
+        // L'offset a cascata non deve mai spingere la finestra oltre il
+        // bordo destro/basso dello schermo, altrimenti (soprattutto con
+        // finestre grandi come quelle Stazioni) finisce per nascondersi
+        // parzialmente.
+        const left = Math.min(
+          baseX + offset,
+          Math.max(20, window.innerWidth - larghezza - 20),
+        );
+        const top = Math.min(
+          baseY + offset,
+          Math.max(20, window.innerHeight - altezza - 20),
+        );
         elFinestra.style.position = "fixed";
         elFinestra.style.width = larghezza + "px";
         elFinestra.style.height = altezza + "px";
-        elFinestra.style.left = baseX + offset + "px";
-        elFinestra.style.top = baseY + offset + "px";
+        elFinestra.style.left = left + "px";
+        elFinestra.style.top = top + "px";
       }
 
       // Come sopra ma sempre nello stesso punto (nessuno sfalsamento a
@@ -2452,6 +2461,28 @@
           altFoto = (altFoto * larghezzaMassima) / largFoto;
           largFoto = larghezzaMassima;
         }
+
+        // Spazio massimo utile (stessi limiti del CSS .finestra-grafico:
+        // 95vw e 90vh, al netto di padding/titolo/frecce): se la foto a
+        // piena risoluzione non ci sta, la scalo mantenendo le proporzioni,
+        // cosi' riempie la finestra senza bordi bianchi. Se scalassi solo
+        // dopo (lasciando fare al CSS), il CSS limiterebbe la larghezza
+        // senza ridurre l'altezza in proporzione, rompendo le proporzioni
+        // della foto rispetto al box.
+        const larghezzaMaxDisponibile =
+          window.innerWidth * 0.95 - ALPS_PADDING_ORIZZONTALE;
+        const altezzaMaxDisponibile =
+          window.innerHeight * 0.9 - ALPS_SPAZIO_TITOLO;
+        const scala = Math.min(
+          1,
+          larghezzaMaxDisponibile / largFoto,
+          altezzaMaxDisponibile / altFoto,
+        );
+        if (scala < 1) {
+          largFoto *= scala;
+          altFoto *= scala;
+        }
+
         const larghezza = largFoto + ALPS_PADDING_ORIZZONTALE;
         const altezza = altFoto + ALPS_SPAZIO_TITOLO;
         const rect = elFinestra.getBoundingClientRect();
@@ -3152,10 +3183,23 @@
         );
       }
 
+      // Giorno (AAAA-MM-GG) attualmente in Data, aggiornato ad ogni
+      // scrittura tramite impostaInputData: serve a rimandaCorrezioneMinuti
+      // per capire se un edit ha CAMBIATO il giorno (allora puo' essere il
+      // picker nativo che ha scelto "oggi", vedi eDataOdierna) o se il
+      // giorno era gia' quello e si sta solo correggendo l'orario, nel qual
+      // caso non va sovrascritto con "adesso".
+      let ultimoGiornoInputData = null;
+
+      function impostaInputData(valore) {
+        inputData.value = valore;
+        ultimoGiornoInputData = valore.slice(0, 10);
+      }
+
       // Data/ora odierna come valore iniziale, in UTC: coerente con i nomi
       // dei frame radar/satellite/fulmini (che sono in UTC) e con
       // parseIstante, che legge quei nomi con i getter "locali" del Date.
-      inputData.value = formattaDataOraUTC(new Date());
+      impostaInputData(formattaDataOraUTC(new Date()));
 
       // Riporta il campo temporale attivo (radar/riflettivita/fulmini) al
       // frame piu' vicino alla Data corrente, e ridisegna il grafico della
@@ -3199,7 +3243,7 @@
         if (!inputData.value) return;
         const corretto = formattaDataOraLocale(new Date(inputData.value));
         setTimeout(() => {
-          inputData.value = corretto;
+          impostaInputData(corretto);
           aggiornaConData();
         }, 0);
       }
@@ -3220,11 +3264,19 @@
       let timerCorrezioneMinuti = null;
       function rimandaCorrezioneMinuti() {
         clearTimeout(timerCorrezioneMinuti);
-        if (eDataOdierna(inputData.value)) {
-          inputData.value = formattaDataOraUTC(new Date());
+        // Il giorno e' cambiato PROPRIO in questo evento (es. il picker
+        // nativo ha scelto "oggi"): solo in questo caso saltiamo ad
+        // "adesso". Se il giorno era gia' oggi e si sta correggendo solo
+        // l'orario, non va sovrascritto - altrimenti diventa impossibile
+        // impostare un'ora passata di oggi.
+        const giornoCambiato =
+          inputData.value.slice(0, 10) !== ultimoGiornoInputData;
+        if (giornoCambiato && eDataOdierna(inputData.value)) {
+          impostaInputData(formattaDataOraUTC(new Date()));
           aggiornaConData();
           return;
         }
+        ultimoGiornoInputData = inputData.value.slice(0, 10);
         timerCorrezioneMinuti = setTimeout(correggiMinutiInputData, 700);
       }
       // Chrome puo' emettere "change" gia' non appena il valore diventa
@@ -3242,7 +3294,7 @@
 
       document.getElementById("bottoneOggi").addEventListener("click", () => {
         clearTimeout(timerCorrezioneMinuti); // niente correzioni in ritardo che sovrascrivano questo valore
-        inputData.value = formattaDataOraUTC(new Date());
+        impostaInputData(formattaDataOraUTC(new Date()));
         aggiornaConData();
       });
       // Invio conferma la data digitata a mano: esce dal campo (blur), il
@@ -3266,7 +3318,7 @@
           const d = new Date(inputData.value);
           d.setMinutes(d.getMinutes() + (e.deltaY < 0 ? 5 : -5));
           // Nota: ho messo "scroll in su = avanti nel tempo" (convenzione tipo spinner); se la preferisci invertita, basta scambiare 5/-5 nel ? :
-          inputData.value = formattaDataOraLocale(d);
+          impostaInputData(formattaDataOraLocale(d));
           aggiornaConData();
         },
         { passive: false },
