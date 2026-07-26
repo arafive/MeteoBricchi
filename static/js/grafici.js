@@ -17,7 +17,7 @@ window.Grafici = (function () {
     vento: {
       unita: "km/h",
       yMin: 0,
-      yMax: 120,
+      yMax: 100,
       tickInterval: 10,
     },
     umidita: {
