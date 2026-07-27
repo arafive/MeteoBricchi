@@ -16,7 +16,6 @@ app = Flask(__name__)
 CARTELLA_COORD = os.path.join(os.path.dirname(__file__), "coordinate")
 CARTELLA_SERIE = os.path.join(os.path.dirname(__file__), "dati1D")
 # Osservati (dati veri, non di un modello): MeteoBricchi/../QRF/osservati/<codice>.csv
-# DOPO
 CARTELLA_OSSERVATI = os.path.join(
     os.path.dirname(__file__), "..", "QRF", "osservati"
 )
@@ -49,6 +48,13 @@ CARTELLE_RADAR = {
     "riflettivita": (os.path.join(CARTELLA_CAMPI, "radar_vmi"), "webp", "image/webp"),
     "vert_int_liq": (os.path.join(CARTELLA_CAMPI, "radar_vil"), "webp", "image/webp"),
     "vil-dens": (os.path.join(CARTELLA_CAMPI, "radar_vil-dens"), "webp", "image/webp"),
+    # "convergenze" e' diventato un campo virtuale lato frontend con tre
+    # prodotti scelti dall'utente (RH, convergenze del vento, cumulata): i
+    # tre PNG vivono nella stessa cartella, distinti solo dal prefisso del
+    # nome file (vedi CAMPI_PREFISSO_FRAME).
+    "convergenze_vento": (os.path.join(CARTELLA_CAMPI, "convergenze2D_obs"), "png", "image/png"),
+    "convergenze_cum": (os.path.join(CARTELLA_CAMPI, "convergenze2D_obs"), "png", "image/png"),
+    "convergenze_rh": (os.path.join(CARTELLA_CAMPI, "convergenze2D_obs"), "png", "image/png"),
     "caldo_obs": (os.path.join(CARTELLA_CAMPI, "heatindex2D_obs"), "png", "image/png"),
     "freddo_obs": (os.path.join(CARTELLA_CAMPI, "windchill2D_obs"), "png", "image/png"),
     "caldo_prev": (os.path.join(CARTELLA_CAMPI, "heatindex2D_prev", "ecita"), "png", "image/png"),
@@ -64,7 +70,8 @@ CARTELLE_SATELLITE = {
 # Echo Top: stessa idea di CARTELLE_SATELLITE, ma il "prodotto" selezionabile
 # e' il livello di soglia in dBZ (radar_etp/<livello>/AAAA/MM/GG/*.webp).
 CARTELLA_ECHOTOP = os.path.join(CARTELLA_CAMPI, "radar_etp")
-LIVELLI_ECHOTOP_VALIDI = {"18", "35", "45"}# Confini geografici statici (shapefile), overlay opzionali sulla mappa.
+# Confini geografici statici (shapefile), overlay opzionali sulla mappa.
+LIVELLI_ECHOTOP_VALIDI = {"18", "35", "45"}
 # Ogni sottocartella contiene UN solo .shp (nome variabile: si trova per
 # estensione) + i sidecar .dbf/.shx/.prj/.cpg.
 CARTELLA_SHAPEFILE = os.path.join(os.path.dirname(__file__), "shapefile")
@@ -256,7 +263,6 @@ def leggi_stazioni(serie):
     return stazioni
 
 
-
 # Localita' Alps (sito esterno "Alps by Davide"): niente piu' richieste di
 # rete a runtime. download_alps.py scarica periodicamente le png e
 # sites.json in dati1D/Alps/AAAA/MM/GG/ (stesso schema di cartelle di
@@ -315,6 +321,45 @@ def percorso_immagine_media_giornaliera(serie, d):
     )
 
 
+# UV osservato: a differenza delle mappe giornaliere qui sopra, esiste solo
+# per due stazioni puntuali (non un'unica immagine regionale) e un file ogni
+# 30 minuti (non uno al giorno). Le coordinate sono le stesse gia' lette per
+# la SERIE "temperatura" (stessa rete di stazioni fisiche), filtrate alle
+# due disponibili per l'UV.
+# dati1D/dati_osservati/UV/<codice>/AAAA/MM/GG/AAAA-MM-GG_HHMM.png
+CARTELLA_UV = os.path.join(CARTELLA_OSSERVATI_GIORNALIERI, "UV")
+STAZIONI_UV = {"CFUNZ", "SPZIA"}
+
+
+def percorso_immagine_uv(codice, dt):
+    """dt e' un datetime (non date): serve anche l'ora, essendo un file ogni
+    30 minuti."""
+    return os.path.join(
+        CARTELLA_UV, codice,
+        f"{dt.year:04d}", f"{dt.month:02d}", f"{dt.day:02d}",
+        f"{dt.year:04d}-{dt.month:02d}-{dt.day:02d}_{dt.hour:02d}{dt.minute:02d}.png",
+    )
+
+
+def ultima_immagine_uv_disponibile(codice, dt):
+    """Istante dell'ultimo file UV disponibile per la stazione, non
+    successivo a dt: se manca il file esatto per l'istante richiesto, la
+    foto da mostrare per prima e' comunque l'ultima buona invece che
+    un'immagine mancante. None se non c'e' proprio nulla prima di dt."""
+    frame = sorted(glob.glob(
+        os.path.join(CARTELLA_UV, codice, "*", "*", "*", "*.png")))
+    nome_richiesto = dt.strftime("%Y-%m-%d_%H%M")
+    frame = [
+        p for p in frame
+        if os.path.splitext(os.path.basename(p))[0] <= nome_richiesto
+    ]
+    if not frame:
+        return None
+    nome = os.path.splitext(os.path.basename(
+        frame[-1]))[0]  # "AAAA-MM-GG_HHMM"
+    return datetime.datetime.strptime(nome, "%Y-%m-%d_%H%M")
+
+
 @app.route("/")
 def index():
     # Le stazioni non vengono più iniettate qui: dipendono dalla serie e
@@ -353,6 +398,45 @@ def stazioni():
             }
             for s in leggi_siti_alps(d)
         ])
+
+    if serie == "uv":
+        try:
+            d = datetime.date.fromisoformat(request.args.get("data", ""))
+        except ValueError:
+            return jsonify([])
+        # ?ora=HH:MM: arrotondata per difetto alla mezz'ora, per aprire il
+        # popup gia' sull'istante piu' vicino a quello mostrato altrove.
+        try:
+            ora_h, ora_m = map(int, request.args.get("ora", "").split(":"))
+            ora_m = 0 if ora_m < 30 else 30
+        except ValueError:
+            ora_h, ora_m = 12, 0
+        dt_richiesto = datetime.datetime(d.year, d.month, d.day, ora_h, ora_m)
+
+        risultato = []
+        for s in leggi_stazioni("temperatura"):
+            if s["codice"] not in STAZIONI_UV:
+                continue
+            esiste_esatto = os.path.exists(
+                percorso_immagine_uv(s["codice"], dt_richiesto))
+            # Il pallino (disponibile) resta legato all'istante esatto
+            # richiesto; la foto mostrata per prima invece ripiega
+            # sull'ultima disponibile, se quell'istante esatto manca.
+            dt_da_mostrare = dt_richiesto if esiste_esatto else (
+                ultima_immagine_uv_disponibile(s["codice"], dt_richiesto)
+                or dt_richiesto
+            )
+            risultato.append({
+                "codice": s["codice"],
+                "nome": s["nome"],
+                "lat": s["lat"],
+                "lon": s["lon"],
+                "quota": s["quota"],
+                "disponibile": esiste_esatto,
+                "uv": True,
+                "data": dt_da_mostrare.strftime("%Y-%m-%dT%H:%M"),
+            })
+        return jsonify(risultato)
 
     if serie not in SERIE_VALIDE:
         abort(404)
@@ -461,6 +545,29 @@ def serie_stazione(codice):
     return jsonify({"tempo": tempo, "tracce": tracce})
 
 
+# Alcuni campi affiancano ad ogni frame un secondo PNG con lo stesso nome
+# piu' un suffisso (es. "convergenze": le frecce del vento sopra il campo
+# principale, es. "convergenze_vento_obs_barbs_2026-07-26_2000.png" accanto
+# a "convergenze_vento_obs_2026-07-26_2000.png"). Va scartato qui, altrimenti
+# /radar/lista lo conterebbe come un frame indipendente invece che come
+# accessorio del frame vero.
+# Alcune cartelle sono condivise da piu' campi: i tre prodotti di
+# "convergenze" (RH, convergenze del vento, cumulata), oppure un secondo PNG
+# accessorio come le barbe del vento ("convergenze_vento_obs_barbs_2026-07-
+# 26_2000.png" accanto a "convergenze_vento_obs_2026-07-26_2000.png"). Qui si
+# specifica il prefisso ESATTO (nome del file meno "_AAAA-MM-GG_HHMM") che un
+# campo deve avere: confronto esatto, non "startswith", altrimenti
+# "convergenze_vento_obs" prenderebbe per errore anche
+# "convergenze_vento_obs_barbs_...". Se un campo non e' qui, nessun filtro
+# (e' l'unico occupante della sua cartella, come radar/riflettivita/ecc).
+FRAME_PREFISSO_RE = re.compile(r"^(.+?)_\d{4}-\d{2}-\d{2}_\d{4}$")
+CAMPI_PREFISSO_FRAME = {
+    "convergenze_vento": "convergenze_vento_obs",
+    "convergenze_cum": "convergenze_cum_vento_obs",
+    "convergenze_rh": "rh_obs",
+}
+
+
 @app.route("/radar/lista")
 def radar_lista():
     """Elenco di tutti i frame + i bounds (identici per tutti, letti una volta
@@ -472,6 +579,15 @@ def radar_lista():
         abort(404)
     cartella, estensione, _ = voce
     frame = trova_frame(cartella, estensione)
+    prefisso = CAMPI_PREFISSO_FRAME.get(campo)
+    if prefisso:
+        filtrati = []
+        for percorso in frame:
+            m = FRAME_PREFISSO_RE.match(
+                os.path.splitext(os.path.basename(percorso))[0])
+            if m and m.group(1) == prefisso:
+                filtrati.append(percorso)
+        frame = filtrati
     if not frame:
         return jsonify({"totale": 0, "bounds": None, "nomi": []})
     bounds = None
@@ -489,6 +605,7 @@ def radar_lista():
         "bounds": bounds,
         "nomi": nomi,
     })
+
 
 NOME_FRAME_RE = re.compile(r"^[A-Za-z0-9_-]+_(\d{4})-(\d{2})-(\d{2})_(\d{4})$")
 
@@ -731,6 +848,24 @@ def media_giornaliera_immagine(serie):
     # 4 possono essere rigenerate piu' volte nella stessa giornata: niente
     # cache, va rifatta la richiesta ogni volta.
     risposta.headers["Cache-Control"] = "no-store"
+    return risposta
+
+
+@app.route("/uv/immagine/<codice>.png")
+def uv_immagine(codice):
+    """Foto UV di una delle due stazioni (CFUNZ, SPZIA), una ogni 30 minuti.
+    Parametro query: ?data=YYYY-MM-DDTHH:MM"""
+    if codice not in STAZIONI_UV:
+        abort(404)
+    try:
+        dt = datetime.datetime.fromisoformat(request.args.get("data", ""))
+    except ValueError:
+        abort(404)
+    percorso = percorso_immagine_uv(codice, dt)
+    if not os.path.exists(percorso):
+        abort(404)
+    risposta = send_file(percorso, mimetype="image/png")
+    risposta.headers["Cache-Control"] = "public, max-age=86400"
     return risposta
 
 

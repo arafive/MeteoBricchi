@@ -141,6 +141,7 @@
                 data-serie="pioggia"
                 title="Pioggia"
                 aria-label="Pioggia"
+                disabled
               >
                 <img
                   src="{{ url_for('static', filename='icone/pioggia.svg') }}"
@@ -204,6 +205,18 @@
               >
                 <img
                   src="{{ url_for('static', filename='icone/SST_ANOMALY.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-serie"
+                data-serie="uv"
+                title="Indice UV"
+                aria-label="Indice UV"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/uv.svg') }}"
                   alt=""
                 />
               </button>
@@ -345,6 +358,18 @@
               >
                 <img
                   src="{{ url_for('static', filename='icone/freddo.svg') }}"
+                  alt=""
+                />
+              </button>
+              <button
+                type="button"
+                class="bottone-campo"
+                data-campo="convergenze"
+                title="Convergenze Osservate"
+                aria-label="Convergenze Osservate"
+              >
+                <img
+                  src="{{ url_for('static', filename='icone/convergenze_obs.svg') }}"
                   alt=""
                 />
               </button>
@@ -532,6 +557,30 @@
             Previsto
           </label>
         </div>
+
+        <div
+          id="controlliProdottoConvergenze"
+          class="controlli-satellite"
+          hidden
+        >
+          <label>
+            <input type="radio" name="prodottoConvergenze" value="rh" />
+            RH
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="prodottoConvergenze"
+              value="vento"
+              checked
+            />
+            Convergenze
+          </label>
+          <label>
+            <input type="radio" name="prodottoConvergenze" value="cum" />
+            Cumulata
+          </label>
+        </div>
       </div>
 
       <div class="controlli-campo-attivo">
@@ -610,7 +659,9 @@
       const mappa = L.map("mappa", {
         zoomControl: false,
         keyboardPanDelta: 0, // le frecce non spostano la mappa (le usa il radar)
-        wheelPxPerZoomLevel: 120, // default 60: più alto = zoom più "morbido" per scatto di rotella
+        wheelPxPerZoomLevel: 240, // default 60: più alto = serve più rotella per uno scatto di zoom
+        zoomSnap: 0.25, // default 1: livelli di zoom frazionari invece che solo interi, più graduale
+        zoomDelta: 0.25, // ampiezza di ogni "scatto" (rotella/bottoni +-), coerente con zoomSnap
         preferCanvas: true, // i layer vettoriali (fulmini, pallini stazioni, shapefile) vanno su un unico <canvas> invece che un nodo SVG a elemento: molto più scalabile con tanti punti (es. cumulate fulmini larghe)
       }).setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
 
@@ -1061,6 +1112,9 @@
       const controlliProdottoFreddo = document.getElementById(
         "controlliProdottoFreddo",
       );
+      const controlliProdottoConvergenze = document.getElementById(
+        "controlliProdottoConvergenze",
+      );
       document
         .querySelectorAll('input[name="livelloEchotop"]')
         .forEach((radio) =>
@@ -1103,10 +1157,50 @@
                   '"] .radar-colonna-nome',
               );
               if (elNome) impostaEtichettaColonna(elNome, campo);
+              aggiornaColorbar();
             }
           }),
         );
       });
+
+      // "convergenze" e' virtuale come "caldo"/"freddo", ma con TRE
+      // prodotti invece di due (RH, convergenze del vento, cumulata) -
+      // dizionario e stato a parte invece di riusare CAMPO_OBS_PREV.
+      const CAMPO_CONVERGENZE = {
+        rh: "convergenze_rh",
+        cum: "convergenze_cum",
+        vento: "convergenze_vento",
+      };
+      let prodottoConvergenze = "vento";
+      document
+        .querySelectorAll('input[name="prodottoConvergenze"]')
+        .forEach((radio) =>
+          radio.addEventListener("change", () => {
+            if (!radio.checked) return;
+            prodottoConvergenze = radio.value;
+            if (campiAttivi.includes("convergenze")) {
+              accendiCampoTemporale("convergenze");
+              const elNome = radarEtichette.querySelector(
+                '.radar-colonna[data-campo="convergenze"] .radar-colonna-nome',
+              );
+              if (elNome) impostaEtichettaColonna(elNome, "convergenze");
+              aggiornaColorbar();
+            }
+          }),
+        );
+
+      // Campi che affiancano ad ogni frame un secondo PNG con nome FISSO:
+      // per "convergenze" le frecce del vento restano sempre le stesse
+      // ("convergenze_vento_obs_barbs...") qualunque sia il prodotto scelto
+      // per il campo principale (RH/cumulata/vento). Vedi ottieniFrameCampo.
+      const CAMPI_CON_SECONDARIO = {
+        convergenze: {
+          campoVero: "convergenze_vento",
+          prefissoNome: "convergenze_vento_obs_barbs",
+        },
+      };
+
+      // Fino a 3 colorbar mostrabili insieme
 
       // Fino a 3 colorbar mostrabili insieme
       // Fino a 3 colorbar mostrabili insieme
@@ -1126,6 +1220,7 @@
       // anti-race-condition, indicizzati per nome campo ("radar", ecc.)
       const listaFrameCampo = {}; // campo -> { nomi, bounds, totale }
       const livelliCampo = {}; // campo -> layer Leaflet attuale (o null)
+      const livelliCampoSecondario = {}; // campo -> layer Leaflet del PNG accessorio (es. le frecce di "convergenze"), o null
       const cachePrecaricamento = {}; // campo -> Map(indice proprio -> Image/Promise)
       const richiestaCampo = {}; // campo -> token progressivo (anti race condition)
       const opacitaCampo = {}; // campo -> opacita' attuale (0-1) dell'overlay, impostata alla prima accensione
@@ -1199,6 +1294,17 @@
             prodottoObsPrev.freddo === "prev"
               ? "{{ url_for('static', filename='icone/colorbar_windchill2D_prev.png') }}"
               : "{{ url_for('static', filename='icone/colorbar_windchill2D_obs.png') }}",
+        },
+        convergenze: {
+          tipo: "immagine",
+          etichetta: "Convergenze Osservate",
+          colorbar: () => {
+            if (prodottoConvergenze === "rh")
+              return "{{ url_for('static', filename='icone/colorbar_RH_obs.png') }}";
+            if (prodottoConvergenze === "cum")
+              return "{{ url_for('static', filename='icone/colorbar_convergenze_cum_obs.png') }}";
+            return "{{ url_for('static', filename='icone/colorbar_convergenze_obs.png') }}";
+          },
         },
         satellite: { tipo: "immagine", etichetta: "Satellite" },
       };
@@ -1457,6 +1563,12 @@
           fonte.textContent =
             prodottoObsPrev[campo] === "prev" ? " (Previsto)" : " (Osservato)";
           elNome.appendChild(fonte);
+        } else if (campo === "convergenze") {
+          const etichette = { rh: "RH", cum: "Cumulata", vento: "Convergenze" };
+          const fonte = document.createElement("span");
+          fonte.className = "radar-colonna-finestra";
+          fonte.textContent = " (" + etichette[prodottoConvergenze] + ")";
+          elNome.appendChild(fonte);
         }
       }
 
@@ -1670,7 +1782,9 @@
           const nomeFrame = listaFrameCampo[campo].nomi[indice];
           const campoVero = CAMPO_OBS_PREV[campo]
             ? CAMPO_OBS_PREV[campo][prodottoObsPrev[campo]]
-            : campo;
+            : campo === "convergenze"
+              ? CAMPO_CONVERGENZE[prodottoConvergenze]
+              : campo;
           voce = new Image();
           voce.src =
             "/immagine/" +
@@ -1679,6 +1793,23 @@
             (descr.estensione || "png") +
             "?campo=" +
             encodeURIComponent(campoVero);
+          const secondario = CAMPI_CON_SECONDARIO[campo];
+          if (secondario) {
+            // Il nome del frame principale ha un prefisso diverso a seconda
+            // del prodotto scelto (RH/cumulata/vento): l'accessorio ha un
+            // nome fisso, ne riuso solo la data/ora finale.
+            const dataOra = nomeFrame.match(/_\d{4}-\d{2}-\d{2}_\d{4}$/);
+            if (dataOra) {
+              voce.secondaria = new Image();
+              voce.secondaria.src =
+                "/immagine/" +
+                encodeURIComponent(secondario.prefissoNome + dataOra[0]) +
+                "." +
+                (descr.estensione || "png") +
+                "?campo=" +
+                encodeURIComponent(secondario.campoVero);
+            }
+          }
         } else {
           // Per NOME, non per indice: stesso motivo delle immagini radar,
           // vedi la route Flask /fulmini/dati/<nome>.
@@ -1722,7 +1853,7 @@
       // Opacita' di default alla prima accensione di un campo (poi
       // regolabile dal cursore); il satellite parte piu' opaco degli altri.
       function opacitaPredefinita(campo) {
-        return campo === "satellite" ? 0.95 : 0.75;
+        return campo === "satellite" ? 0.95 : 0.85;
       }
 
       // Ordine gerarchico degli overlay 2D quando piu' campi sono attivi
@@ -1766,6 +1897,40 @@
               // Coordinate del punto cliccato (e.latlng), utile come base per altre funzioni.
               // Lettura del valore sotto al cursore: più interessante ma complesso.
             }).addTo(mappa);
+
+            if (livelliCampoSecondario[campo]) {
+              mappa.removeLayer(livelliCampoSecondario[campo]);
+              livelliCampoSecondario[campo] = null;
+            }
+            if (frame.secondaria) {
+              const disegnaSecondario = () => {
+                if (mioToken !== richiestaCampo[campo]) return;
+                livelliCampoSecondario[campo] = L.imageOverlay(
+                  frame.secondaria.src,
+                  lista.bounds,
+                  {
+                    opacity: opacitaCampo[campo] ?? opacitaPredefinita(campo),
+                    interactive: false,
+                    // z-index CSS vuole un intero: niente "+ 0.5" (non
+                    // valido, verrebbe ignorato). Fisso e piu' alto anche
+                    // del radar (zIndexCampo massimo, 3), cosi' le barbe
+                    // restano sempre in primo piano qualunque altro campo
+                    // sia attivo insieme.
+                    zIndex: 10,
+                  },
+                ).addTo(mappa);
+              };
+              if (
+                frame.secondaria.complete &&
+                frame.secondaria.naturalWidth > 0
+              ) {
+                disegnaSecondario();
+              } else {
+                frame.secondaria.addEventListener("load", disegnaSecondario, {
+                  once: true,
+                });
+              }
+            }
           };
           if (frame.complete && frame.naturalWidth > 0) {
             disegna();
@@ -1891,6 +2056,10 @@
           mappa.removeLayer(livelliCampo[campo]);
           livelliCampo[campo] = null;
         }
+        if (livelliCampoSecondario[campo]) {
+          mappa.removeLayer(livelliCampoSecondario[campo]);
+          livelliCampoSecondario[campo] = null;
+        }
         delete listaFrameCampo[campo];
         delete cachePrecaricamento[campo];
         delete richiestaCampo[campo];
@@ -1971,6 +2140,9 @@
           opacitaCampo[campo] = parseFloat(cursore.value);
           if (livelliCampo[campo]) {
             livelliCampo[campo].setOpacity(opacitaCampo[campo]);
+          }
+          if (livelliCampoSecondario[campo]) {
+            livelliCampoSecondario[campo].setOpacity(opacitaCampo[campo]);
           }
           mostraBolla();
         });
@@ -2073,6 +2245,8 @@
         controlliEchotopLivello.hidden = !campiAttivi.includes("echotop");
         controlliProdottoCaldo.hidden = !campiAttivi.includes("caldo");
         controlliProdottoFreddo.hidden = !campiAttivi.includes("freddo");
+        controlliProdottoConvergenze.hidden =
+          !campiAttivi.includes("convergenze");
         if (!temporaliAttivi) return;
 
         if (listaIstanti.length > 0) {
@@ -2180,6 +2354,12 @@
         if (CAMPO_OBS_PREV[campo]) {
           const campoVero = CAMPO_OBS_PREV[campo][prodottoObsPrev[campo]];
           return "/radar/lista?campo=" + encodeURIComponent(campoVero);
+        }
+        if (campo === "convergenze") {
+          return (
+            "/radar/lista?campo=" +
+            encodeURIComponent(CAMPO_CONVERGENZE[prodottoConvergenze])
+          );
         }
         return DESCRITTORI_CAMPO[campo].tipo === "immagine"
           ? "/radar/lista?campo=" + encodeURIComponent(campo)
@@ -2357,7 +2537,9 @@
           "/stazioni?serie=" +
           encodeURIComponent(serie) +
           "&data=" +
-          encodeURIComponent(stato.data.slice(0, 10)); // solo AAAA-MM-GG
+          encodeURIComponent(stato.data.slice(0, 10)) + // solo AAAA-MM-GG
+          "&ora=" +
+          encodeURIComponent(stato.data.slice(11, 16)); // HH:MM, usato solo da "uv"
         fetch(url)
           .then((r) => (r.ok ? r.json() : []))
           .then((stazioni) => {
@@ -2403,6 +2585,14 @@
         if (finestreAperte.has(s.codice)) {
           portaInPrimoPiano(s.codice);
           return;
+        }
+        if (s.uv) {
+          s.costruisciUrlImmagine = (data) =>
+            "/uv/immagine/" +
+            encodeURIComponent(s.codice) +
+            ".png?data=" +
+            encodeURIComponent(data);
+          s.passoMinuti = 30; // frecce avanti/indietro: 30 minuti invece di un giorno
         }
         creaFinestraGrafico(s);
       }
@@ -2561,11 +2751,12 @@
             elNavigazioneGiorno.querySelector(".etichetta-giorno");
           aggiornaEtichettaGiornoFinestra(stato);
         } else if (s.costruisciUrlImmagine) {
-          // Come sopra ma per temp_media/prec_media/sst/sst_anomaly: la
+          // Come sopra ma per temp_media/prec_media/sst/sst_anomaly/UV: la
           // funzione che costruisce l'URL e' generica (nessuna localita'
           // da codificare nel percorso).
           stato.data = s.data;
           stato.costruisciUrlImmagine = s.costruisciUrlImmagine;
+          stato.passoMinuti = s.passoMinuti; // 30 per UV; assente = passo di un giorno
 
           const elNavigazioneGiorno = creaNavigazioneGiorno(s.codice);
 
@@ -2748,8 +2939,14 @@
       }
 
       function aggiornaEtichettaGiornoFinestra(f) {
-        const [aa, mm, gg] = f.data.split("-");
-        f.elGiornoLabel.textContent = gg + "-" + mm + "-" + aa;
+        if (f.passoMinuti) {
+          const [giorno, ora] = f.data.split("T");
+          const [aa, mm, gg] = giorno.split("-");
+          f.elGiornoLabel.textContent = gg + "-" + mm + "-" + aa + " " + ora;
+        } else {
+          const [aa, mm, gg] = f.data.split("-");
+          f.elGiornoLabel.textContent = gg + "-" + mm + "-" + aa;
+        }
       }
 
       // Riga con le due frecce cambio giorno, usata da tutte le finestre
@@ -2796,14 +2993,29 @@
       function cambiaGiornoFinestraImmagine(codice, delta) {
         const f = finestreAperte.get(codice);
         if (!f) return;
-        const d = new Date(f.data + "T00:00:00");
-        d.setDate(d.getDate() + delta);
-        f.data =
-          d.getFullYear() +
-          "-" +
-          String(d.getMonth() + 1).padStart(2, "0") +
-          "-" +
-          String(d.getDate()).padStart(2, "0");
+        if (f.passoMinuti) {
+          const d = new Date(f.data);
+          d.setMinutes(d.getMinutes() + delta * f.passoMinuti);
+          f.data =
+            d.getFullYear() +
+            "-" +
+            String(d.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(d.getDate()).padStart(2, "0") +
+            "T" +
+            String(d.getHours()).padStart(2, "0") +
+            ":" +
+            String(d.getMinutes()).padStart(2, "0");
+        } else {
+          const d = new Date(f.data + "T00:00:00");
+          d.setDate(d.getDate() + delta);
+          f.data =
+            d.getFullYear() +
+            "-" +
+            String(d.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(d.getDate()).padStart(2, "0");
+        }
         aggiornaEtichettaGiornoFinestra(f);
         f.elImmagine.src = f.costruisciUrlImmagine(f.data);
       }
@@ -3218,8 +3430,9 @@
         }
 
         const nuovaData = statoMenu().data.slice(0, 10);
+        const nuovaDataOra = statoMenu().data; // "AAAA-MM-GGTHH:MM", per le finestre a passo-minuti (UV)
         finestreAperte.forEach((f, codice) => {
-          f.data = nuovaData; // la Data globale sovrascrive un'eventuale navigazione fatta con le frecce
+          f.data = f.passoMinuti ? nuovaDataOra : nuovaData; // la Data globale sovrascrive un'eventuale navigazione fatta con le frecce
           aggiornaEtichettaGiornoFinestra(f);
           if (f.soloImmagine) {
             f.elImmagine.src = f.costruisciUrlImmagine(f.data);

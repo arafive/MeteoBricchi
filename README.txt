@@ -11,14 +11,18 @@ README.txt
     Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
     Apri il plot a pop up con CTRL e il mouse sopra il pallino.
     In produzione, colora i pallini se superano certe soglie.
+    Baco su sync dati csv in dati1D
 
 --- Grafici 2D
     Aggiungi IRENE.
-    Aggiungi cumulate radar (30min, 1h, 3h, 12h)
+    Aggiungi cumulate radar (30min, 1h, 3h, 12h).
+    Aggiungi shapefile intensità temporali.
+    CCSI
 
 --- Altro
     Logo meteobricchi.
     Crea un unico file 'sync.sh' con tutti gli rsync espliciti per una migliore lettura
+    Fai diventare tracciati i testi nei loghi.
 
 --- Bachi
     In run_operativo.py di vento e temperatura, riguarda il config che può essere impostato in ecsyn o df_coordinate_estere
