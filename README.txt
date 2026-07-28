@@ -11,7 +11,6 @@ README.txt
     Comincia ad impostare che ogni previsione è fatta da feature di un modello specifico.
     Apri il plot a pop up con CTRL e il mouse sopra il pallino.
     In produzione, colora i pallini se superano certe soglie.
-    Baco su sync dati csv in dati1D
 
 --- Grafici 2D
     Aggiungi IRENE.
@@ -21,7 +20,6 @@ README.txt
 
 --- Altro
     Logo meteobricchi.
-    Crea un unico file 'sync.sh' con tutti gli rsync espliciti per una migliore lettura
     Fai diventare tracciati i testi nei loghi.
 
 --- Bachi

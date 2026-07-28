@@ -177,6 +177,19 @@ body {
   border: none;
 }
 
+.placeholder-non-trovato {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.placeholder-non-trovato img {
+  width: 72px;
+  height: 72px;
+  opacity: 1.0;
+}
+
 /* --- Finestra centrata (modale) per il grafico --- */
 /* Overlay non bloccante: centra la finestra ma lascia interagire mappa e menù */
 .modale-overlay {

@@ -4,7 +4,7 @@ rsyncd() {
     rsync -rahzPuv --update --modify-window=1 --info=progress2 "$@"
 }
 
-LOCKFILE="/tmp/sync_lenovo2daniele.lock"
+LOCKFILE="/tmp/sync_meteodev2daniele.lock"
 
 # Evita esecuzioni multiple contemporanee
 if [ -e "$LOCKFILE" ]; then
@@ -31,19 +31,13 @@ fi
 
 ##############################################################################
 
-DA='/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi/dati1D'
+DA='/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati1D'
 A="$RADICE_REPO/."
-rsyncd daniele.carnevale@01588-lenovo.cfmi.arpal.org:$DA $A
+rsyncd meteo@meteo-dev:$DA $A
 
 ##############################################################################
 
-DA='/home/cfmi.arpal.org/daniele.carnevale/Scrivania/MeteoBricchi/dati2D'
+DA='/home/cfmi.arpal.org/meteo/QnapDevMeteo/MeteoBricchi/dati2D'
 A="$RADICE_REPO/."
-rsyncd daniele.carnevale@01588-lenovo.cfmi.arpal.org:$DA $A
-
-##############################################################################
-
-DA='/home/cfmi.arpal.org/daniele.carnevale/Scrivania/QRF/osservati'
-A="$RADICE_REPO/../QRF/."
-rsyncd daniele.carnevale@01588-lenovo.cfmi.arpal.org:$DA $A
+rsyncd meteo@meteo-dev:$DA $A
 

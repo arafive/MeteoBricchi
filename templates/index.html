@@ -454,6 +454,18 @@
                 alt=""
               />
             </button>
+            <button
+              type="button"
+              class="bottone-azione"
+              id="bottoneToolSeri"
+              title="Tool Seri (Alt+t)"
+              aria-label="Tool Seri"
+            >
+              <img
+                src="{{ url_for('static', filename='icone/tool_seri.svg') }}"
+                alt=""
+              />
+            </button>
           </div>
         </div>
         <div class="firma">
@@ -1344,6 +1356,21 @@
         "{{ url_for('static', filename='icone/freccia_sinistra.svg') }}";
       const ICONA_GIORNO_AVANTI =
         "{{ url_for('static', filename='icone/freccia_destra.svg') }}";
+      const ICONA_NON_TROVATO =
+        "{{ url_for('static', filename='icone/bee_not_found_BW.svg') }}";
+
+      // Markup comune per icona + testo mostrato quando manca il file/dato
+      // (CSV non trovato o PNG non trovato)
+      function markupNonTrovato() {
+        return (
+          '<div class="placeholder-non-trovato">' +
+          '<img src="' +
+          ICONA_NON_TROVATO +
+          '" alt="">' +
+          "<span>File o previsioni non trovati</span>" +
+          "</div>"
+        );
+      }
 
       // Prodotto satellite attualmente scelto (geocolour|sandwich): non
       // viene azzerato quando il campo si spegne, cosi' riaccendendolo si
@@ -2726,20 +2753,32 @@
           elImmagine.style.width = "100%";
           elImmagine.style.height = "100%";
           elImmagine.style.objectFit = "contain";
-          elImmagine.addEventListener("load", () =>
+          elImmagine.addEventListener("load", () => {
+            elImmagine.style.display = "";
+            elPlaceholder.style.display = "none";
             ridimensionaFinestraAllaFoto(
               elFinestra,
               elImmagine.naturalWidth,
               elImmagine.naturalHeight,
-            ),
-          );
+            );
+          });
+          elImmagine.addEventListener("error", () => {
+            elImmagine.style.display = "none";
+            elPlaceholder.style.display = "flex";
+          });
           elImmagine.src = stato.costruisciUrlImmagine(stato.data);
+
+          const elPlaceholder = document.createElement("div");
+          elPlaceholder.className = "grafico-popup";
+          elPlaceholder.style.display = "none";
+          elPlaceholder.innerHTML = markupNonTrovato();
 
           elFinestra.append(
             elChiudi,
             elTitolo,
             elNavigazioneGiorno,
             elImmagine,
+            elPlaceholder,
           );
           finestreGrafici.appendChild(elFinestra);
           // Placeholder quasi quadrato finche' la foto non e' caricata (poi
@@ -2747,6 +2786,7 @@
           posizionaFinestraFissa(elFinestra, 640, 640);
 
           stato.elImmagine = elImmagine;
+          stato.elPlaceholder = elPlaceholder;
           stato.elGiornoLabel =
             elNavigazioneGiorno.querySelector(".etichetta-giorno");
           aggiornaEtichettaGiornoFinestra(stato);
@@ -2766,26 +2806,41 @@
           elImmagine.style.width = "100%";
           elImmagine.style.height = "100%";
           elImmagine.style.objectFit = "contain";
-          elImmagine.addEventListener("load", () =>
+          elImmagine.addEventListener("load", () => {
+            elImmagine.style.display = "";
+            elPlaceholder.style.display = "none";
             ridimensionaFinestraAllaFoto(
               elFinestra,
               elImmagine.naturalWidth,
               elImmagine.naturalHeight,
               s.larghezzaMassima,
-            ),
-          );
+            );
+          });
+          elImmagine.addEventListener("error", () => {
+            elImmagine.style.display = "none";
+            elPlaceholder.style.display = "flex";
+          });
           elImmagine.src = stato.costruisciUrlImmagine(stato.data);
+
+          const elPlaceholder = document.createElement("div");
+          elPlaceholder.className = "grafico-popup";
+          elPlaceholder.style.display = "none";
+          elPlaceholder.innerHTML = markupNonTrovato();
 
           elFinestra.append(
             elChiudi,
             elTitolo,
             elNavigazioneGiorno,
             elImmagine,
+            elPlaceholder,
           );
           finestreGrafici.appendChild(elFinestra);
+          // Placeholder quasi quadrato finche' la foto non e' caricata (poi
+          // ridimensionaFinestraAllaFoto la adatta alle proporzioni vere)
           posizionaFinestraFissa(elFinestra, 640, 640);
 
           stato.elImmagine = elImmagine;
+          stato.elPlaceholder = elPlaceholder;
           stato.elGiornoLabel =
             elNavigazioneGiorno.querySelector(".etichetta-giorno");
           aggiornaEtichettaGiornoFinestra(stato);
@@ -3108,8 +3163,7 @@
               f.grafico = null;
             }
             f.elGrafico.classList.remove("nessun-placeholder");
-            f.elGrafico.textContent =
-              "(nessun dato per data/serie selezionate)";
+            f.elGrafico.innerHTML = markupNonTrovato();
           });
       }
 
@@ -3971,6 +4025,12 @@
       });
 
       document
+        .getElementById("bottoneToolSeri")
+        .addEventListener("click", () => {
+          window.open("http://10.24.50.225:5005/", "_blank");
+        });
+
+      document
         .getElementById("bottoneRicentra")
         .addEventListener("click", () => {
           mappa.setView(VISTA_INIZIALE.centro, VISTA_INIZIALE.zoom);
@@ -3987,6 +4047,7 @@
         l: "bottoneLayer",
         r: "bottoneRicentra",
         o: "bottoneOrario",
+        t: "bottoneToolSeri",
       };
       // Scorciatoie Alt+Shift+lettera per i bottoni CAMPO: tasti diversi
       // apposta per non confliggere con quelle sopra (es. Alt+R = Ricentra,
