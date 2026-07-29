@@ -16,7 +16,8 @@ README.txt
     Aggiungi IRENE.
     Aggiungi cumulate radar (30min, 1h, 3h, 12h).
     Aggiungi shapefile intensità temporali.
-    CCSI
+    Rivedi il kriging delle temperature 
+    Metti nelle stazioni del krigin le query controllate da Marco
 
 --- Altro
     Logo meteobricchi.

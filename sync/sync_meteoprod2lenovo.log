@@ -1,0 +1,36 @@
+receiving incremental file list
+CFUNZ/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=387/390)
+CFUNZ/2026/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=386/390)
+CFUNZ/2026/07/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=381/390)
+CFUNZ/2026/07/24/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=363/390)
+CFUNZ/2026/07/25/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=315/390)
+CFUNZ/2026/07/26/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=267/390)
+CFUNZ/2026/07/27/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=219/390)
+CFUNZ/2026/07/28/
+              0   0%    0,00kB/s    0:00:00 (xfr#0, to-chk=194/390)
+CFUNZ/2026/07/28/2026-07-28_1130.png
+              0   0%    0,00kB/s    0:00:00           99,69K   0%   95,07MB/s    0:00:00 (xfr#1, to-chk=195/390)
+CFUNZ/2026/07/28/2026-07-28_1200.png
+        199,38K   0%   27,16MB/s    0:00:00 (xfr#2, to-chk=194/390)
+SPZIA/
+SPZIA/2026/
+SPZIA/2026/07/
+SPZIA/2026/07/24/
+SPZIA/2026/07/25/
+SPZIA/2026/07/26/
+SPZIA/2026/07/27/
+SPZIA/2026/07/28/
+SPZIA/2026/07/28/2026-07-28_1130.png
+        353,42K   0%   17,74MB/s    0:00:00 (xfr#3, to-chk=1/390)  
+SPZIA/2026/07/28/2026-07-28_1200.png
+        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,62MB/s    0:00:00 (xfr#4, to-chk=0/390)        507,59K   1%   15,13MB/s    0:00:00 (xfr#4, to-chk=0/390)
+
+sent 168 bytes  received 474,18K bytes  316,23K bytes/sec
+total size is 47,90M  speedup is 100,97
